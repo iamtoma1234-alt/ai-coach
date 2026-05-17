@@ -140,6 +140,11 @@
     <!-- Toasts -->
     <div id="toast-container"></div>
 
+    <!-- 翻訳ツールチップ（新規追加） -->
+    <div id="wordTooltip" class="fixed hidden bg-slate-800/95 border border-blue-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-50 text-sm backdrop-blur-md pointer-events-none transform transition-all duration-200">
+        <!-- JSでコンテンツを挿入 -->
+    </div>
+
     <main class="flex-1 overflow-y-auto max-w-3xl w-full mx-auto p-4 safe-pb relative space-y-6">
         
         <!-- Input Section -->
@@ -307,6 +312,8 @@
         let speechRecognition = null;
         let currentAudio = null; // For AI TTS Audio playback
         const audioCache = new Map(); // 生成した音声を保存するキャッシュ
+        const wordDictionaryCache = new Map(); // 単語の翻訳を保存するキャッシュ
+        let tooltipTimeout = null;
 
         // --- DOM Elements ---
         const els = {
@@ -337,6 +344,7 @@
             apiKeyInput: document.getElementById('apiKeyInput'),
             saveKeyBtn: document.getElementById('saveKeyBtn'),
             removeKeyBtn: document.getElementById('removeKeyBtn'),
+            wordTooltip: document.getElementById('wordTooltip'),
         };
 
         // --- UI / Toast System ---
@@ -463,6 +471,18 @@
                 localStorage.removeItem('nativeSense_history');
                 renderHistory();
                 showToast('履歴をクリアしました');
+            });
+
+            // Tooltip outside click to close
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#wordTooltip') && e.target.tagName !== 'SPAN') {
+                    els.wordTooltip.classList.add('hidden');
+                }
+            });
+            
+            // Hide tooltip on scroll for better mobile UX
+            document.querySelector('main').addEventListener('scroll', () => {
+                els.wordTooltip.classList.add('hidden');
             });
         }
 
@@ -855,8 +875,10 @@ Provide a "casual" natural native expression, a "business" polite expression, an
         }
 
         function displayResult(data) {
-            els.casualText.textContent = data.casual;
-            els.businessText.textContent = data.business;
+            // 単語ごとにクリック可能な状態にしてセット
+            createClickableText(data.casual, els.casualText);
+            createClickableText(data.business, els.businessText);
+            
             els.adviceText.textContent = data.advice;
             
             els.resultSection.classList.remove('hidden');
@@ -928,6 +950,119 @@ Provide a "casual" natural native expression, a "business" polite expression, an
 
         // Start App
         window.addEventListener('DOMContentLoaded', init);
+
+        // --- 単語翻訳機能 (Word Tooltip) ---
+        function createClickableText(text, element) {
+            element.innerHTML = '';
+            // アルファベット、数字、アポストロフィ、ハイフンを単語として認識し分割
+            const parts = text.split(/([a-zA-Z0-9'-]+)/);
+            
+            parts.forEach(part => {
+                if (/^[a-zA-Z0-9'-]+$/.test(part)) {
+                    const span = document.createElement('span');
+                    span.textContent = part;
+                    // クリック可能であることを示す点線の下線スタイル
+                    span.className = 'cursor-pointer transition-colors border-b border-slate-500/40 border-dashed hover:text-blue-300 hover:border-blue-400';
+                    span.addEventListener('click', (e) => handleWordClick(e, part));
+                    element.appendChild(span);
+                } else if (part) {
+                    // スペースや記号はそのままテキストノードとして追加
+                    element.appendChild(document.createTextNode(part));
+                }
+            });
+        }
+
+        async function handleWordClick(e, word) {
+            e.stopPropagation(); // 外側クリックで閉じる処理をキャンセル
+            
+            const cleanWord = word.toLowerCase().replace(/[^a-z0-9'-]/g, '');
+            if (!cleanWord) return;
+
+            const tooltip = els.wordTooltip;
+            
+            // ローディング表示と位置調整
+            tooltip.innerHTML = `<div class="flex items-center gap-2"><div class="loader" style="width:16px;height:16px;border-width:2px;"></div><span>検索中...</span></div>`;
+            positionTooltip(tooltip, e.target);
+
+            // キャッシュ確認
+            if (wordDictionaryCache.has(cleanWord)) {
+                showTooltipContent(word, wordDictionaryCache.get(cleanWord));
+                return;
+            }
+
+            if (!state.apiKey) {
+                showTooltipContent(word, "（デモ翻訳）");
+                return;
+            }
+
+            try {
+                const trans = await translateWordAPI(cleanWord);
+                wordDictionaryCache.set(cleanWord, trans);
+                showTooltipContent(word, trans);
+            } catch(error) {
+                console.error(error);
+                showTooltipContent(word, "翻訳エラー");
+            }
+        }
+
+        function showTooltipContent(originalWord, translatedText) {
+            const tooltip = els.wordTooltip;
+            tooltip.innerHTML = `
+                <div class="flex flex-col items-center">
+                    <span class="text-[10px] text-slate-400 font-mono tracking-wider mb-0.5">${originalWord.toLowerCase()}</span>
+                    <span class="font-bold text-base text-white">${translatedText}</span>
+                </div>
+            `;
+            
+            // 4秒後に自動で隠す
+            clearTimeout(tooltipTimeout);
+            tooltipTimeout = setTimeout(() => {
+                tooltip.classList.add('hidden');
+            }, 4000);
+        }
+
+        function positionTooltip(tooltip, targetElement) {
+            tooltip.classList.remove('hidden');
+            const rect = targetElement.getBoundingClientRect();
+            
+            // ツールチップのデフォルト位置（単語の上部）
+            let top = rect.top - tooltip.offsetHeight - 12;
+            let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
+            
+            // 画面外にはみ出さないための処理
+            if (top < 10) top = rect.bottom + 12; // 上にはみ出る場合は下に表示
+            if (left < 10) left = 10; // 左端の保護
+            if (left + tooltip.offsetWidth > window.innerWidth - 10) {
+                left = window.innerWidth - tooltip.offsetWidth - 10; // 右端の保護
+            }
+            
+            tooltip.style.top = `${top}px`;
+            tooltip.style.left = `${left}px`;
+        }
+
+        async function translateWordAPI(word) {
+            const systemPrompt = `あなたは優秀な英和辞典です。入力された英単語に対する最も一般的な「日本語の意味」を1つだけ、簡潔に回答してください。（最大10文字程度。発音記号や解説、不要な記号は一切含めないこと。）`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: word }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    temperature: 0.1, // 揺らぎを少なくして辞書らしい出力を固定化
+                }
+            };
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${state.apiKey}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error('API Error');
+            const result = await response.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "不明";
+        }
 
     </script>
 </body>
