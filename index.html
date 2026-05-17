@@ -1,783 +1,115 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Native English Coach</title>
+"{\n" +
+                             "  \"casual\": \"natural casual daily phrase\",\n" +
+                             "  \"formal\": \"polite or business appropriate phrase\",\n" +
+                             "  \"explanation\": \"ワンポイント解説テキスト（日本語）\"\n" +
+                             "}\n" +
+                             (base64Image ? "An image is attached. Coach the user on how to describe what is in the image or answer their question regarding the image contents." : "") +
+                             `\nUser Input: ${promptInput}`;
 
-  <!-- iOS PWA (スマホのホーム画面追加用) の最適化設定 -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="AI Coach">
-  
-  <!-- Tailwind CSS & Google Fonts & FontAwesome Icons -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  
-  <!-- Tailwind Custom Config for Dark Tech Aesthetics -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Urbanist', 'Noto Sans JP', 'sans-serif'],
-          },
-          colors: {
-            brand: {
-              black: '#0A0A0C',
-              dark: '#121216',
-              card: '#1A1A22',
-              lime: '#deff9a',
-              limedark: '#b8e653',
-              accent: '#daffde',
-              textMuted: '#94A3B8',
+            const parts = [{ text: promptText }];
+            if (base64Image && imageMimeType) {
+                parts.push({ inlineData: { mimeType: imageMimeType, data: base64Image } });
             }
-          }
-        }
-      }
-    }
-  </script>
-</head>
-<body class="bg-brand-black text-slate-100 font-sans min-h-screen">
 
-  <!-- Main Container -->
-  <div class="max-w-7xl mx-auto px-4 py-6 md:py-10">
-    
-    <!-- HEADER BAR -->
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-white/5">
-      <div>
-        <div class="flex items-center gap-2 mb-1">
-          <span class="px-2 py-0.5 text-[10px] bg-brand-lime/10 text-brand-lime rounded-full font-bold uppercase tracking-wider">
-            Powered by Gemini 2.5 Flash
-          </span>
-        </div>
-        <h1 class="text-2xl md:text-3xl font-bold flex items-center gap-2">
-          <span>AI Native</span>
-          <span class="text-brand-lime font-extrabold">English Coach</span>
-        </h1>
-        <p class="text-xs text-brand-textMuted mt-1">
-          声とテキストで学び、洗練されたネイティブ表現を自分だけのスプレッドシートにストック。
-        </p>
-      </div>
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+            try {
+                const data = await fetchWithRetry(url, { contents: [{ parts: parts }] });
+                let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+                
+                // Clean any accidental markdown enclosing blocks
+                rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const result = JSON.parse(rawText);
 
-      <!-- Settings Block: API Keys -->
-      <div class="w-full md:w-auto flex flex-col sm:flex-row gap-2">
-        <div class="relative flex-grow sm:flex-none">
-          <input type="password" id="api-key-input" placeholder="Gemini APIキーを入力 (AIzaSy...)" 
-                 class="w-full sm:w-64 bg-brand-dark border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-brand-lime transition-all text-slate-200">
-          <button onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-brand-textMuted hover:text-white transition-all">
-            <i id="api-key-eye" class="fa-solid fa-eye text-xs"></i>
-          </button>
-        </div>
-        <button onclick="saveApiKey()" class="bg-brand-lime hover:bg-brand-limedark text-brand-black text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-lg shadow-brand-lime/10">
-          キーを保存
-        </button>
-      </div>
-    </header>
-
-    <!-- MAIN DASHBOARD LAYOUT -->
-    <main class="grid grid-cols-1 md:grid-cols-12 gap-6">
-      
-      <!-- LEFT PANEL: Speech & Keyboard Input Area (7 columns) -->
-      <section class="md:col-span-7 flex flex-col gap-6">
-        
-        <!-- Smart Input Workspace (Speech & Typing Keyboard) -->
-        <div class="bg-brand-dark rounded-2xl border border-white/5 p-5 md:p-6 shadow-2xl relative overflow-hidden">
-          <div class="flex justify-between items-center mb-3">
-            <h2 class="text-sm font-bold uppercase tracking-wider text-brand-textMuted flex items-center gap-2">
-              <i class="fa-solid fa-keyboard text-brand-lime"></i> インプット
-            </h2>
-            <span id="char-counter" class="text-[10px] text-brand-textMuted bg-white/5 px-2 py-0.5 rounded">0 文字</span>
-          </div>
-
-          <!-- Hybrid Text/Voice Input Box -->
-          <div class="relative mb-4">
-            <textarea id="input-textarea" oninput="updateCharCounter()" placeholder="ここに日本語または拙い英語を入力するか、右下のマイクボタンを押してしゃべってください..." 
-                      class="w-full min-h-[140px] bg-brand-black/50 border border-white/5 rounded-xl p-4 text-sm focus:outline-none focus:border-brand-lime/50 transition-all text-slate-100 placeholder-slate-500 resize-none leading-relaxed"></textarea>
-            
-            <!-- Floating Clear Button -->
-            <button onclick="clearInput()" class="absolute right-3 bottom-3 p-2 text-brand-textMuted hover:text-rose-400 bg-brand-black/80 rounded-lg hover:bg-brand-black transition-all" title="クリア">
-              <i class="fa-solid fa-trash-can text-xs"></i>
-            </button>
-          </div>
-
-          <!-- Bottom Action Buttons Grid -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <!-- Mic Record Control -->
-            <button id="mic-btn" onclick="toggleRecording()" class="w-full bg-brand-black border border-white/10 hover:border-brand-lime/30 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 text-slate-200">
-              <i id="mic-icon" class="fa-solid fa-microphone text-brand-lime text-base"></i>
-              <span id="mic-text">音声入力を開始する</span>
-            </button>
-
-            <!-- Translate Action Control -->
-            <button onclick="processEnglishTranslation()" class="w-full bg-brand-lime hover:bg-brand-limedark text-brand-black font-extrabold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-lime/5">
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
-              <span>英訳・添削を実行</span>
-            </button>
-          </div>
-          
-          <!-- Micro State Bar -->
-          <div id="status-bar" class="mt-3 text-center text-xs text-brand-textMuted min-h-[20px]"></div>
-        </div>
-
-        <!-- Real-time Interactive Output Screen -->
-        <div id="output-screen" class="hidden bg-brand-card rounded-2xl border border-white/5 p-5 md:p-6 shadow-xl transition-all duration-300">
-          <h2 class="text-sm font-bold uppercase tracking-wider text-brand-textMuted mb-4 flex items-center gap-2">
-            <i class="fa-solid fa-circle-check text-brand-lime"></i> AI 変換結果
-          </h2>
-          
-          <div class="space-y-4">
-            
-            <!-- Casual Phrase Card -->
-            <div class="bg-brand-black/40 border border-white/5 rounded-xl p-4 relative group">
-              <span class="absolute top-3 right-3 text-[9px] font-bold text-brand-lime uppercase tracking-widest bg-brand-lime/5 px-2 py-0.5 rounded">Casual</span>
-              <p class="text-xs text-brand-textMuted mb-1">日常会話・フレンドリー表現</p>
-              <div class="flex justify-between items-center gap-4">
-                <p id="out-casual" class="text-lg font-bold text-slate-100 tracking-wide select-all leading-snug"></p>
-                <button onclick="speakTextFromOutput('out-casual')" class="w-10 h-10 rounded-full bg-brand-lime/10 hover:bg-brand-lime text-brand-lime hover:text-brand-black flex items-center justify-center transition-all shrink-0">
-                  <i class="fa-solid fa-volume-high text-sm"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- Formal Phrase Card -->
-            <div class="bg-brand-black/40 border border-white/5 rounded-xl p-4 relative group">
-              <span class="absolute top-3 right-3 text-[9px] font-bold text-cyan-400 uppercase tracking-widest bg-cyan-400/5 px-2 py-0.5 rounded">Formal</span>
-              <p class="text-xs text-brand-textMuted mb-1">ビジネス・丁寧な大人の表現</p>
-              <div class="flex justify-between items-center gap-4">
-                <p id="out-formal" class="text-lg font-bold text-slate-100 tracking-wide select-all leading-snug"></p>
-                <button onclick="speakTextFromOutput('out-formal')" class="w-10 h-10 rounded-full bg-brand-lime/10 hover:bg-brand-lime text-brand-lime hover:text-brand-black flex items-center justify-center transition-all shrink-0">
-                  <i class="fa-solid fa-volume-high text-sm"></i>
-                </button>
-              </div>
-            </div>
-
-            <!-- Explanatory Coaching Tip -->
-            <div class="bg-brand-lime/5 border border-brand-lime/10 rounded-xl p-4">
-              <h4 class="text-xs font-bold text-brand-lime mb-1 flex items-center gap-1">
-                <i class="fa-solid fa-circle-info"></i> コーチからの解説メモ
-              </h4>
-              <p id="out-tips" class="text-xs text-slate-300 leading-relaxed"></p>
-            </div>
-
-          </div>
-        </div>
-
-      </section>
-
-      <!-- RIGHT PANEL: Cache History Manager (5 columns) -->
-      <section class="md:col-span-5 flex flex-col gap-6">
-        
-        <!-- Speech Synthesis (TTS) Settings -->
-        <div class="bg-brand-card rounded-2xl border border-white/5 p-5 shadow-xl">
-          <h2 class="text-sm font-bold mb-3 flex items-center gap-2 text-brand-textMuted uppercase tracking-wider">
-            <i class="fa-solid fa-sliders text-brand-lime"></i> 音声合成 (TTS) カスタマイズ
-          </h2>
-          <div class="space-y-3">
-            <div>
-              <div class="flex justify-between text-xs mb-1">
-                <span>読み上げ速度</span>
-                <span id="speed-val">0.9x (おすすめ)</span>
-              </div>
-              <input type="range" id="speech-speed" min="0.5" max="1.5" step="0.1" value="0.9" oninput="updateSpeechSpeed()" class="w-full accent-brand-lime bg-brand-black h-1 rounded-lg cursor-pointer">
-            </div>
-            <div>
-              <label class="text-xs text-brand-textMuted block mb-1">発音アクセント</label>
-              <div class="grid grid-cols-3 gap-1 bg-brand-black p-1 rounded-lg border border-white/5 mb-2">
-                <button onclick="changeAccentFilter('us')" id="accent-us" class="text-[10px] py-1 rounded font-medium bg-brand-lime text-brand-black transition-all">🇺🇸 米国 (US)</button>
-                <button onclick="changeAccentFilter('uk')" id="accent-uk" class="text-[10px] py-1 rounded font-medium text-slate-300 bg-white/5 hover:bg-white/10 transition-all">🇬🇧 英国 (UK)</button>
-                <button onclick="changeAccentFilter('all')" id="accent-all" class="text-[10px] py-1 rounded font-medium text-slate-300 bg-white/5 hover:bg-white/10 transition-all">🌐 すべて</button>
-              </div>
-            </div>
-            <div>
-              <label class="text-xs text-brand-textMuted block mb-1">ボイス（スピーカー）</label>
-              <select id="voice-select" class="w-full bg-brand-black border border-white/10 rounded-lg p-2 text-xs focus:outline-none focus:border-brand-lime text-slate-300">
-                <!-- Dynamically populated -->
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Cache & History Management -->
-        <div class="bg-brand-card rounded-2xl border border-white/5 p-5 shadow-xl flex-grow flex flex-col min-h-[300px]">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-sm font-bold uppercase tracking-wider text-brand-textMuted flex items-center gap-2">
-              <i class="fa-solid fa-history text-brand-lime"></i> ローカルキャッシュ・履歴
-            </h2>
-            <button onclick="clearAllCache()" class="text-[10px] text-rose-400 hover:text-rose-300 font-bold tracking-wider transition-all">
-              全キャッシュ消去
-            </button>
-          </div>
-
-          <!-- Live Filter Bar -->
-          <div class="grid grid-cols-2 gap-2 mb-3 bg-brand-black p-1 rounded-xl border border-white/5">
-            <button onclick="toggleHistoryFilter('all')" id="filter-all" class="text-xs py-1.5 rounded font-medium bg-brand-lime text-brand-black transition-all">
-              すべて表示
-            </button>
-            <button onclick="toggleHistoryFilter('fav')" id="filter-fav" class="text-xs py-1.5 rounded font-medium text-slate-300 hover:bg-white/5 transition-all">
-              🌟 お気に入り
-            </button>
-          </div>
-
-          <!-- Scrollable log lists -->
-          <div id="history-container" class="space-y-3 overflow-y-auto max-h-[400px] flex-grow pr-1 text-slate-200">
-            <!-- Dynamically populated history entries -->
-            <div class="text-center py-10 text-brand-textMuted text-xs">
-              <i class="fa-solid fa-cloud-arrow-up text-xl mb-2 block"></i>
-              まだ英訳履歴はありません
-            </div>
-          </div>
-        </div>
-
-      </section>
-
-    </main>
-
-    <!-- TOAST NOTIFICATION STACK -->
-    <div id="toast-stack" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-  </div>
-
-  <script>
-    // --- Application State ---
-    let speechRecognition = null;
-    let isRecording = false;
-    let geminiApiKey = localStorage.getItem('gemini_api_key') || '';
-    let speechHistory = JSON.parse(localStorage.getItem('english_coach_history')) || [];
-    let currentFilter = 'all'; // 'all' or 'fav'
-    let selectedVoice = null;
-    let speechRate = 0.9;
-    let currentAccentFilter = 'us'; // Default to US accent
-    
-    // Default system response when API key is missing (Demo Mode Mock)
-    const DEMO_TRANSLATIONS = {
-      "明日雨ならバーベキュー中止": {
-        "original": "明日雨ならバーベキュー中止",
-        "native_casual": "If it rains tomorrow, the BBQ is off.",
-        "native_formal": "We will cancel the barbecue tomorrow in case of rain.",
-        "tips": "カジュアルでは 'off' で中止を簡潔に、フォーマルでは 'in case of' を使って論理的に表現します。"
-      },
-      "手伝って": {
-        "original": "手伝って",
-        "native_casual": "Could you give me a hand?",
-        "native_formal": "I would appreciate it if you could assist me.",
-        "tips": "相手に少し負荷がかかるため、カジュアルでも 'Could you~' を使うのが大人のマナーです。"
-      }
-    };
-
-    // --- STREAMING_CHUNK: Setting up Speech Recognition STT... ---
-    function initSpeechRecognition() {
-      const SpeechReg = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechReg) {
-        showToast("このブラウザは音声認識 (STT) をサポートしていません。", "fa-circle-xmark");
-        document.getElementById('mic-btn').disabled = true;
-        return;
-      }
-
-      speechRecognition = new SpeechReg();
-      speechRecognition.continuous = true;
-      speechRecognition.interimResults = true;
-      speechRecognition.lang = 'ja-JP'; // Primary voice listening language
-
-      speechRecognition.onstart = () => {
-        isRecording = true;
-        document.getElementById('mic-text').innerText = "音声を聞き取り中...";
-        document.getElementById('mic-btn').classList.add('border-brand-lime', 'bg-brand-lime/10');
-        showToast("音声認識スタート。どうぞお話しください", "fa-microphone");
-      };
-
-      speechRecognition.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-
-        const inputArea = document.getElementById('input-textarea');
-        if (finalTranscript !== '') {
-          inputArea.value += (inputArea.value ? ' ' : '') + finalTranscript;
-          updateCharCounter();
-        }
-        document.getElementById('status-bar').innerText = interimTranscript ? `聞き取り中: ${interimTranscript}` : '';
-      };
-
-      speechRecognition.onerror = (event) => {
-        console.error("Speech Recognition Error:", event.error);
-        if (event.error !== 'no-speech') {
-          showToast(`音声エラーが発生しました: ${event.error}`, "fa-circle-xmark");
-        }
-        stopRecordingState();
-      };
-
-      speechRecognition.onend = () => {
-        stopRecordingState();
-      };
-    }
-
-    function toggleRecording() {
-      if (!speechRecognition) initSpeechRecognition();
-      if (!speechRecognition) return;
-
-      if (isRecording) {
-        speechRecognition.stop();
-      } else {
-        speechRecognition.start();
-      }
-    }
-
-    function stopRecordingState() {
-      isRecording = false;
-      document.getElementById('mic-text').innerText = "音声入力を開始する";
-      document.getElementById('mic-btn').classList.remove('border-brand-lime', 'bg-brand-lime/10');
-      document.getElementById('status-bar').innerText = '';
-    }
-
-    // --- STREAMING_CHUNK: Setting up Speech Synthesis TTS with customization... ---
-    function initSpeechVoices() {
-      if (!('speechSynthesis' in window)) return;
-      
-      const populateVoices = () => {
-        const voices = window.speechSynthesis.getVoices();
-        const selector = document.getElementById('voice-select');
-        selector.innerHTML = '';
-        
-        // Filter English Speakers
-        let enVoices = voices.filter(voice => voice.lang.startsWith('en-'));
-        
-        // Apply Accent filter based on current user selection (US, UK, or All)
-        if (currentAccentFilter === 'us') {
-          enVoices = enVoices.filter(voice => voice.lang.includes('US') || voice.lang === 'en-US');
-        } else if (currentAccentFilter === 'uk') {
-          enVoices = enVoices.filter(voice => voice.lang.includes('GB') || voice.lang === 'en-GB' || voice.lang.includes('UK'));
-        }
-        
-        if (enVoices.length === 0) {
-          const opt = document.createElement('option');
-          opt.value = "";
-          opt.innerText = currentAccentFilter === 'us' ? "標準米国音声 (en-US)" : (currentAccentFilter === 'uk' ? "標準英国音声 (en-GB)" : "標準デバイス音声 (英語)");
-          selector.appendChild(opt);
-          return;
-        }
-
-        enVoices.forEach((voice) => {
-          const opt = document.createElement('option');
-          opt.value = voice.name;
-          opt.innerText = `${voice.name} (${voice.lang})`;
-          if (voice.name.includes('Google') || voice.name.includes('Samantha') || voice.name.includes('Premium') || voice.name.includes('Daniel') || voice.name.includes('Hazel')) {
-            opt.selected = true;
-          }
-          selector.appendChild(opt);
+                displayResults({
+                    casual: result.casual || "No casual phrase generated",
+                    formal: result.formal || "No formal phrase generated",
+                    explanation: result.explanation || "解説はありません。"
+                });
+            } catch (err) {
+                console.error(err);
+                showToast(`エラーが発生しました: ${err.message}`);
+            } finally {
+                setLoading(false);
+            }
         });
-      };
 
-      populateVoices();
-      if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = populateVoices;
-      }
-    }
-
-    function updateSpeechSpeed() {
-      speechRate = parseFloat(document.getElementById('speech-speed').value);
-      document.getElementById('speed-val').innerText = `${speechRate}x ${speechRate === 0.9 ? '(おすすめ)' : ''}`;
-    }
-
-    // --- STREAMING_CHUNK: Core TTS Play Method & Accent Handler... ---
-    function speak(text) {
-      if (!('speechSynthesis' in window)) {
-        showToast("このブラウザは音声合成に対応していません", "fa-circle-xmark");
-        return;
-      }
-
-      // Cancel current speaking if any
-      window.speechSynthesis.cancel();
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = speechRate;
-      utterance.lang = currentAccentFilter === 'uk' ? 'en-GB' : 'en-US';
-
-      // Pick user selected voice
-      const select = document.getElementById('voice-select');
-      const voices = window.speechSynthesis.getVoices();
-      
-      if (voices.length > 0 && select.value !== "") {
-        const selectedVoiceObj = voices.find(v => v.name === select.value);
-        if (selectedVoiceObj) {
-          utterance.voice = selectedVoiceObj;
-          utterance.lang = selectedVoiceObj.lang;
-        }
-      }
-
-      window.speechSynthesis.speak(utterance);
-    }
-
-    function changeAccentFilter(accent) {
-      currentAccentFilter = accent;
-      const btnAll = document.getElementById('accent-all');
-      const btnUs = document.getElementById('accent-us');
-      const btnUk = document.getElementById('accent-uk');
-
-      // Reset classes
-      [btnAll, btnUs, btnUk].forEach(btn => {
-        btn.className = "text-[10px] py-1 rounded font-medium text-slate-300 bg-white/5 hover:bg-white/10 transition-all";
-      });
-
-      // Highlight selected accent button
-      const activeBtn = document.getElementById(`accent-${accent}`);
-      activeBtn.className = "text-[10px] py-1 rounded font-medium bg-brand-lime text-brand-black transition-all";
-
-      initSpeechVoices();
-      
-      let toastMessage = "発音アクセントを切り替えました";
-      if (accent === 'us') toastMessage = "🇺🇸 米国発音 (US) を優先にしました";
-      if (accent === 'uk') toastMessage = "🇬🇧 英国発音 (UK) を優先にしました";
-      showToast(toastMessage, "fa-sliders");
-    }
-
-    // Trigger Speak from visual response blocks
-    function speakTextFromOutput(elementId) {
-      const text = document.getElementById(elementId).innerText;
-      if (text) {
-        speak(text);
-      }
-    }
-
-    // --- STREAMING_CHUNK: Processing Input Translation (Client-Side calling backend or Gemini API directly)... ---
-    async function processEnglishTranslation() {
-      const inputArea = document.getElementById('input-textarea');
-      const text = inputArea.value.trim();
-
-      if (!text) {
-        showToast("英訳したい内容を入力するか、話しかけてください", "fa-circle-xmark");
-        return;
-      }
-
-      // If recording, stop first
-      if (isRecording && speechRecognition) {
-        speechRecognition.stop();
-      }
-
-      updateStatus("AIに接続してネイティブ表現を考案中...", true);
-
-      // 1. If running inside Google Apps Script, execute server-side function
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler((resultObj) => {
-            handleSuccessfulTranslation(resultObj);
-          })
-          .withFailureHandler((error) => {
-            updateStatus("");
-            showToast(`GAS実行エラー: ${error.message}`, "fa-circle-xmark");
-          })
-          .processSpeech(text, geminiApiKey);
-        return;
-      }
-
-      // 2. Client-side Fallback (Mock/Direct Gemini Call via Browser fetching)
-      if (geminiApiKey) {
-        await callGeminiAPIDirectly(text);
-      } else {
-        // Fallback to Demo Mock Translation with fuzzy matching
-        setTimeout(() => {
-          let foundMock = null;
-          Object.keys(DEMO_TRANSLATIONS).forEach(key => {
-            if (text.includes(key) || key.includes(text)) {
-              foundMock = DEMO_TRANSLATIONS[key];
+        function setLoading(isLoading) {
+            if (isLoading) {
+                submitBtn.disabled = true;
+                submitBtnText.textContent = 'AIコーチ分析中...';
+                showToast('Geminiが考えています... 🧠');
+            } else {
+                submitBtn.disabled = false;
+                submitBtnText.textContent = '英語フレーズに変換・解析する';
+                hideToast();
             }
-          });
+        }
 
-          if (!foundMock) {
-            // Generate standard response on the fly if not exact demo keyword match
-            foundMock = {
-              "original": text,
-              "native_casual": `I want to say: "${text}" in a casual conversation.`,
-              "native_formal": `I would like to convey that: "${text}".`,
-              "tips": "これはAPIキー未設定時のデモです。右上でAPIキーを保存すると、本物のAI変換が動作します。"
+        function displayResults(data) {
+            phraseCasual.textContent = data.casual;
+            phraseFormal.textContent = data.formal;
+            phraseExplanation.textContent = data.explanation;
+            resultArea.classList.remove('hidden');
+
+            // Save item to operational history cache
+            const historyItem = {
+                id: Date.now(),
+                input: inputText.value.trim() || (base64Image ? "📷 写真から英語を学習" : "音声入力フレーズ"),
+                casual: data.casual,
+                formal: data.formal
             };
-          }
-          handleSuccessfulTranslation(foundMock);
-        }, 800);
-      }
-    }
+            history.unshift(historyItem);
+            if (history.length > 15) history.pop();
+            localStorage.setItem('ai_coach_history', JSON.stringify(history));
+            
+            renderHistory();
+            speakText(data.casual); // Auto play the primary casual phrase
+        }
 
-    // Direct Browser-to-Gemini Call using modern exponential backoff retry algorithms
-    async function callGeminiAPIDirectly(userInput, attempt = 1) {
-      const maxAttempts = 3;
-      const systemPrompt = `You are an elite native English coach. Analyze the user's input.
-If the input is Japanese, translate it to natural, native English.
-If the input is broken/awkward English, refine it into natural native expressions.
-Provide two stylistic options: Casual (for daily talk) and Formal (for business/polite settings).
+        function renderHistory() {
+            historyList.innerHTML = '';
+            if (history.length === 0) {
+                emptyHistoryText.classList.remove('hidden');
+                return;
+            }
+            emptyHistoryText.classList.add('hidden');
 
-You MUST respond strictly in the following JSON format. Do not wrap it in markdown codeblocks. Do not add any greeting or extra text outside this JSON:
-{
-  "original": "The original input text",
-  "native_casual": "Natural daily casual English phrase",
-  "native_formal": "Professional/polite English phrase",
-  "tips": "Brief 1-sentence Japanese explanation of the difference or nuance"
-}`;
+            history.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-800 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between gap-2 shadow-sm animate-fade-in text-xs';
+                card.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] text-slate-500 truncate mb-0.5">元の発言: ${item.input}</p>
+                        <p class="font-semibold text-slate-200 truncate py-0.5">🇺🇸 ${item.casual}</p>
+                        <p class="text-slate-400 truncate">🇬🇧 ${item.formal}</p>
+                    </div>
+                    <button class="historyPlayBtn bg-indigo-950 hover:bg-indigo-900 border border-indigo-900/40 text-indigo-400 p-2.5 rounded-full flex items-center justify-center shrink-0 w-9 h-9 transition" data-speak="${item.casual}">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                `;
+                card.querySelector('.historyPlayBtn').addEventListener('click', (e) => {
+                    speakText(e.currentTarget.dataset.speak);
+                });
+                historyList.appendChild(card);
+            });
+        }
+        renderHistory();
 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-      
-      const payload = {
-        contents: [{
-          parts: [
-            { text: systemPrompt },
-            { text: `User Input: "${userInput}"` }
-          ]
-        }]
-      };
-
-      try {
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+        clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('すべての学習履歴をクリアしますか？')) {
+                history = [];
+                localStorage.removeItem('ai_coach_history');
+                renderHistory();
+            }
         });
 
-        if (response.status === 503 || response.status === 429) {
-          if (attempt < maxAttempts) {
-            const delay = Math.pow(2, attempt) * 1000;
-            updateStatus(`サーバー混雑中... 再試行します (${attempt}/${maxAttempts - 1})`, true);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return await callGeminiAPIDirectly(userInput, attempt + 1);
-          }
-        }
-
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`Gemini API Error (${response.status}): ${errText}`);
-        }
-
-        const data = await response.json();
-        let textResult = data.candidates[0].content.parts[0].text.trim();
-        textResult = textResult.replace(/^```json/, "").replace(/```$/, "").trim();
-        const parsedObj = JSON.parse(textResult);
-
-        handleSuccessfulTranslation(parsedObj);
-
-      } catch (err) {
-        console.error(err);
-        updateStatus("");
-        showToast(err.message || "通信エラーが発生しました", "fa-circle-xmark");
-      }
-    }
-
-    function handleSuccessfulTranslation(resultObj) {
-      updateStatus("");
-      
-      // Update UI Output Area
-      document.getElementById('output-screen').classList.remove('hidden');
-      document.getElementById('out-casual').innerText = resultObj.native_casual;
-      document.getElementById('out-formal').innerText = resultObj.native_formal;
-      document.getElementById('out-tips').innerText = resultObj.tips;
-
-      // Automatically speak the casual output phrase first
-      speak(resultObj.native_casual);
-
-      // Save into cache list
-      saveToHistoryCache(resultObj);
-    }
-
-    // --- STREAMING_CHUNK: History & Local Storage Cache Management... ---
-    function saveToHistoryCache(obj) {
-      // Avoid exact duplicates
-      const exists = speechHistory.some(item => item.original === obj.original);
-      if (exists) return;
-
-      const newHistoryItem = {
-        id: Date.now(),
-        date: new Date().toISOString(),
-        original: obj.original,
-        native_casual: obj.native_casual,
-        native_formal: obj.native_formal,
-        tips: obj.tips,
-        favorite: false
-      };
-
-      speechHistory.unshift(newHistoryItem);
-      localStorage.setItem('english_coach_history', JSON.stringify(speechHistory));
-      renderHistoryList();
-    }
-
-    function renderHistoryList() {
-      const container = document.getElementById('history-container');
-      
-      let filtered = speechHistory;
-      if (currentFilter === 'fav') {
-        filtered = speechHistory.filter(item => item.favorite);
-      }
-
-      if (filtered.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-10 text-brand-textMuted text-xs">
-            <i class="fa-solid fa-cloud-arrow-up text-xl mb-2 block animate-pulse"></i>
-            ログはありません
-          </div>`;
-        return;
-      }
-
-      container.innerHTML = filtered.map(item => `
-        <div class="bg-brand-dark/80 p-4 rounded-xl border border-white/5 flex flex-col gap-2 relative group hover:border-brand-lime/10 transition-all">
-          <div class="flex justify-between items-center text-[10px] text-brand-textMuted">
-            <span>${new Date(item.date).toLocaleTimeString()}</span>
-            <div class="flex items-center gap-1">
-              <button onclick="toggleFavorite(${item.id})" class="p-1 hover:text-yellow-400 transition-all">
-                <i class="fa-${item.favorite ? 'solid text-yellow-400' : 'regular'} fa-star"></i>
-              </button>
-              <button onclick="deleteSingleCache(${item.id})" class="p-1 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all">
-                <i class="fa-solid fa-trash"></i>
-              </button>
-            </div>
-          </div>
-          
-          <p class="text-[11px] text-brand-textMuted">原音: <span class="text-slate-300 font-medium">${item.original}</span></p>
-          
-          <div class="space-y-1 my-1 border-l-2 border-brand-lime/20 pl-2">
-            <div class="flex justify-between items-center gap-2">
-              <span class="text-xs text-brand-lime font-bold tracking-wide select-all">${item.native_casual}</span>
-              <button onclick="speak('${item.native_casual.replace(/'/g, "\\'")}')" class="text-brand-textMuted hover:text-brand-lime shrink-0">
-                <i class="fa-solid fa-volume-high text-xs"></i>
-              </button>
-            </div>
-            <div class="flex justify-between items-center gap-2">
-              <span class="text-xs text-cyan-400 font-bold tracking-wide select-all">${item.native_formal}</span>
-              <button onclick="speak('${item.native_formal.replace(/'/g, "\\'")}')" class="text-brand-textMuted hover:text-cyan-400 shrink-0">
-                <i class="fa-solid fa-volume-high text-xs"></i>
-              </button>
-            </div>
-          </div>
-
-          <p class="text-[10px] bg-white/5 p-2 rounded text-slate-400 leading-relaxed">💡 ${item.tips}</p>
-        </div>
-      `).join('');
-    }
-
-    function toggleFavorite(id) {
-      speechHistory = speechHistory.map(item => {
-        if (item.id === id) item.favorite = !item.favorite;
-        return item;
-      });
-      localStorage.setItem('english_coach_history', JSON.stringify(speechHistory));
-      renderHistoryList();
-      showToast("お気に入りを更新しました", "fa-star");
-    }
-
-    function deleteSingleCache(id) {
-      speechHistory = speechHistory.filter(item => item.id !== id);
-      localStorage.setItem('english_coach_history', JSON.stringify(speechHistory));
-      renderHistoryList();
-      showToast("フレーズをキャッシュから消去しました", "fa-trash");
-    }
-
-    function clearAllCache() {
-      if (confirm("全てのキャッシュと保存履歴を消去します。よろしいですか？")) {
-        speechHistory = [];
-        localStorage.removeItem('english_coach_history');
-        renderHistoryList();
-        showToast("全キャッシュデータを消去しました", "fa-trash-can");
-      }
-    }
-
-    function toggleHistoryFilter(filter) {
-      currentFilter = filter;
-      const btnAll = document.getElementById('filter-all');
-      const btnFav = document.getElementById('filter-fav');
-
-      if (filter === 'all') {
-        btnAll.className = "text-xs py-1.5 rounded font-medium bg-brand-lime text-brand-black transition-all";
-        btnFav.className = "text-xs py-1.5 rounded font-medium text-slate-300 hover:bg-white/5 transition-all";
-      } else {
-        btnFav.className = "text-xs py-1.5 rounded font-medium bg-brand-lime text-brand-black transition-all";
-        btnAll.className = "text-xs py-1.5 rounded font-medium text-slate-300 hover:bg-white/5 transition-all";
-      }
-      renderHistoryList();
-    }
-
-    // --- STREAMING_CHUNK: User Interface Helpers & Feedback Controls... ---
-    function updateCharCounter() {
-      const text = document.getElementById('input-textarea').value;
-      document.getElementById('char-counter').innerText = `${text.length} 文字`;
-    }
-
-    function clearInput() {
-      const input = document.getElementById('input-textarea');
-      input.value = '';
-      updateCharCounter();
-      document.getElementById('status-bar').innerText = '';
-    }
-
-    function updateStatus(message, isSpinning = false) {
-      const bar = document.getElementById('status-bar');
-      if (!message) {
-        bar.innerHTML = '';
-        return;
-      }
-      bar.innerHTML = `
-        <div class="flex items-center justify-center gap-2 text-brand-lime">
-          ${isSpinning ? '<i class="fa-solid fa-spinner animate-spin"></i>' : ''}
-          <span>${message}</span>
-        </div>`;
-    }
-
-    function showToast(message, iconClass = "fa-bell") {
-      const stack = document.getElementById('toast-stack');
-      const toast = document.createElement('div');
-      toast.className = "bg-brand-dark/95 border border-white/10 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs text-slate-200 pointer-events-auto transition-all duration-300 translate-y-4 opacity-0";
-      toast.innerHTML = `
-        <i class="fa-solid ${iconClass} text-brand-lime text-sm"></i>
-        <span>${message}</span>`;
-      
-      stack.appendChild(toast);
-      
-      // Animate entry
-      setTimeout(() => {
-        toast.classList.remove('translate-y-4', 'opacity-0');
-      }, 50);
-
-      // Animate removal
-      setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-2');
-        setTimeout(() => {
-          toast.remove();
-        }, 300);
-      }, 3500);
-    }
-
-    // --- API Key Controls ---
-    function saveApiKey() {
-      const key = document.getElementById('api-key-input').value.trim();
-      geminiApiKey = key;
-      localStorage.setItem('gemini_api_key', key);
-      showToast("Gemini APIキーを安全にブラウザに記憶しました", "fa-lock");
-    }
-
-    function toggleApiKeyVisibility() {
-      const input = document.getElementById('api-key-input');
-      const eye = document.getElementById('api-key-eye');
-      if (input.type === 'password') {
-        input.type = 'text';
-        eye.className = 'fa-solid fa-eye-slash text-xs';
-      } else {
-        input.type = 'password';
-        eye.className = 'fa-solid fa-eye text-xs';
-      }
-    }
-
-    // Load API Keys and history on screen load
-    window.onload = function() {
-      if (geminiApiKey) {
-        document.getElementById('api-key-input').value = geminiApiKey;
-      }
-      initSpeechVoices();
-      renderHistoryList();
-    };
-  </script>
+        function showToast(msg) { toast.textContent = msg; toast.classList.remove('hidden'); }
+        function hideToast() { toast.classList.add('hidden'); }
+    </script>
 </body>
 </html>
+"""
+
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+print("File created successfully.")
