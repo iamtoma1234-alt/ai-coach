@@ -191,6 +191,15 @@
                         </select>
                     </div>
                 </div>
+                
+                <!-- 速度調整スライダー追加 -->
+                <div class="flex items-center justify-between sm:justify-end gap-2 text-sm mt-3 pt-3 border-t border-slate-700/30">
+                    <span class="text-slate-400 text-xs"><i class="fa-solid fa-gauge-high text-xs mr-1"></i>再生速度:</span>
+                    <div class="flex-1 sm:flex-none sm:w-[200px] flex items-center gap-3">
+                        <input type="range" id="speedSlider" min="0.5" max="1.0" step="0.1" value="1.0" class="w-full accent-blue-500 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                        <span id="speedValue" class="text-xs text-slate-300 font-mono w-8 text-right">1.0x</span>
+                    </div>
+                </div>
             </div>
 
             <!-- 大きく配置した音声入力ボタン -->
@@ -296,7 +305,8 @@
             ttsEngine: 'browser', // 'browser' | 'ai'
             accent: localStorage.getItem('nativeSense_accent') || 'US', // 'US' | 'UK'
             browserVoiceUri: localStorage.getItem('nativeSense_bVoice') || '',
-            aiVoiceName: localStorage.getItem('nativeSense_aiVoice') || 'Zephyr'
+            aiVoiceName: localStorage.getItem('nativeSense_aiVoice') || 'Zephyr',
+            speed: parseFloat(localStorage.getItem('nativeSense_speed')) || 1.0 // 速度状態の追加
         };
 
         const AI_VOICES = [
@@ -345,6 +355,9 @@
             saveKeyBtn: document.getElementById('saveKeyBtn'),
             removeKeyBtn: document.getElementById('removeKeyBtn'),
             wordTooltip: document.getElementById('wordTooltip'),
+            
+            speedSlider: document.getElementById('speedSlider'),
+            speedValue: document.getElementById('speedValue'),
         };
 
         // --- UI / Toast System ---
@@ -383,6 +396,11 @@
             renderHistory();
             initSpeechRecognition();
             initTTS();
+            
+            // スピードUIの初期化
+            els.speedSlider.value = state.speed;
+            els.speedValue.textContent = state.speed.toFixed(1) + 'x';
+            
             setupEventListeners();
         }
 
@@ -450,6 +468,19 @@
                 } else {
                     state.aiVoiceName = e.target.value;
                     localStorage.setItem('nativeSense_aiVoice', state.aiVoiceName);
+                }
+            });
+
+            // Speed Slider Change
+            els.speedSlider.addEventListener('input', (e) => {
+                const val = parseFloat(e.target.value);
+                state.speed = val;
+                els.speedValue.textContent = val.toFixed(1) + 'x';
+                localStorage.setItem('nativeSense_speed', val);
+                
+                // 再生中の音声があれば即座に速度を反映（AI音声の場合）
+                if (currentAudio) {
+                    currentAudio.playbackRate = val;
                 }
             });
 
@@ -667,7 +698,7 @@
             
             const voice = browserVoices.find(v => v.voiceURI === state.browserVoiceUri) || browserVoices[0];
             if (voice) utterance.voice = voice;
-            utterance.rate = 0.9; // Slightly slower for learning
+            utterance.rate = state.speed; // スピード設定を反映
             
             window.speechSynthesis.speak(utterance);
         }
@@ -731,6 +762,7 @@
             // キャッシュが存在する場合はAPIを呼ばずに再生
             if (audioCache.has(cacheKey)) {
                 currentAudio = new Audio(audioCache.get(cacheKey));
+                currentAudio.playbackRate = state.speed; // スピード設定を反映
                 currentAudio.play();
                 return;
             }
@@ -782,6 +814,7 @@
                     audioCache.set(cacheKey, audioUrl);
                     
                     currentAudio = new Audio(audioUrl);
+                    currentAudio.playbackRate = state.speed; // スピード設定を反映
                     currentAudio.play();
                 } else {
                     throw new Error('Invalid audio data format');
