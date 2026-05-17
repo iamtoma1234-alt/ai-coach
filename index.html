@@ -1,580 +1,919 @@
-html_content = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Native English Coach</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="AI Coach">
+    <title>NativeSense - AI English Tutor</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            900: '#0f172a',
+                            950: '#020617',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         body {
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc; /* Slate 50 */
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile if possible */
+        }
+        
+        /* Custom Scrollbar for sleek look */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(71, 85, 105, 0.8);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 1);
+        }
+
+        /* Safe area paddings for iOS Notch */
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        .safe-pt { padding-top: env(safe-area-inset-top, 0px); }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in {
-            animation: fadeIn 0.3s ease-out forwards;
+            animation: fadeIn 0.4s ease-out forwards;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .recording-pulse {
+            animation: pulse-ring 2s infinite;
+            background-color: #ef4444 !important; /* Red */
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-left-color: #3b82f6; /* Blue 500 */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Toast Container */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast {
+            background: rgba(30, 41, 59, 0.95); /* Slate 800 */
+            border: 1px solid #334155;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s, transform 0.3s;
+            pointer-events: auto;
         }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col">
+<body class="safe-pt text-slate-100 flex flex-col h-screen overflow-hidden">
 
-    <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-10 shadow-md">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center animate-pulse">
-                    <i class="fa-solid fa-graduation-cap text-white text-sm"></i>
+    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 flex-shrink-0 z-10 sticky top-0">
+        <div class="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600 p-2 rounded-lg text-white shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-language text-xl"></i>
                 </div>
-                <div>
-                    <h1 class="font-bold text-lg tracking-wide bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">AI English Coach</h1>
-                    <p class="text-xs text-slate-400">POWERED BY GEMINI 2.5 FLASH</p>
-                </div>
+                <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">NativeSense</h1>
             </div>
             
-            <button id="apiKeyBtn" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full border border-slate-600 flex items-center space-x-1 transition">
-                <i class="fa-solid fa-key text-yellow-400"></i>
-                <span id="keyStatusText" class="text-slate-200">APIキー設定</span>
+            <button id="apiKeyBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-yellow-500/50 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20">
+                <i class="fa-solid fa-key"></i>
+                <span id="apiKeyStatusText">デモモード</span>
             </button>
         </div>
     </header>
 
-    <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-4 pb-32">
+    <!-- Toasts -->
+    <div id="toast-container"></div>
+
+    <main class="flex-1 overflow-y-auto max-w-3xl w-full mx-auto p-4 safe-pb relative space-y-6">
         
-        <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-xl space-y-3">
-            <div class="flex justify-between items-center text-xs text-slate-400">
-                <span class="font-medium flex items-center gap-1">
-                    <i class="fa-solid fa-keyboard text-indigo-400"></i>
-                    日本語・拙い英語を入力
-                </span>
-                <span id="charCount">0 文字</span>
+        <!-- Input Section -->
+        <section class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-sm relative backdrop-blur-sm">
+            <div class="flex justify-between items-end mb-2">
+                <label for="inputText" class="text-sm font-medium text-slate-300">翻訳・添削したいテキストを入力</label>
+                <span id="charCount" class="text-xs text-slate-500 font-mono">0 / 200</span>
+            </div>
+            <div class="relative">
+                <textarea id="inputText" rows="3" maxlength="200" placeholder="例: 明日の会議は10時からに変更できますか？&#10;例: I want to changing meeting time tomorrow." 
+                    class="w-full bg-slate-900/50 border border-slate-700 rounded-xl p-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 resize-none transition-all"></textarea>
+                
+                <div class="absolute bottom-3 right-3 flex gap-2">
+                    <button id="clearBtn" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 flex items-center justify-center transition-colors" title="クリア">
+                        <i class="fa-solid fa-eraser text-sm"></i>
+                    </button>
+                </div>
             </div>
 
-            <textarea id="inputText" rows="3" 
-                class="w-full bg-slate-900 text-slate-100 rounded-xl p-3 border border-slate-700 focus:outline-none focus:border-indigo-500 placeholder-slate-500 text-sm resize-none" 
-                placeholder="「これ英語でなんて言う？」や、直したい英文を入力するか、マイクボタンで話しかけてください..."></textarea>
-
-            <div id="imagePreviewContainer" class="hidden relative rounded-xl overflow-hidden border border-slate-700 bg-slate-900 p-2">
-                <img id="imagePreview" src="" class="max-h-40 w-auto mx-auto rounded-lg object-contain">
-                <button id="removeImageBtn" class="absolute top-3 right-3 bg-red-600 hover:bg-red-700 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </div>
-
-            <div class="flex justify-between items-center gap-2">
-                <div class="flex items-center gap-2">
-                    <label class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-3 rounded-full cursor-pointer flex items-center justify-center w-11 h-11 transition border border-slate-600 shadow-sm" title="写真を撮る/アップロード">
-                        <i class="fa-solid fa-camera text-cyan-400"></i>
-                        <input type="file" id="imageInput" accept="image/*" capture="environment" class="hidden">
-                    </label>
+            <div class="mt-4 pt-4 border-t border-slate-700/50 space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between gap-3 text-sm">
+                    <div class="flex items-center justify-between sm:justify-start gap-2">
+                        <span class="text-slate-400 text-xs"><i class="fa-solid fa-headphones text-xs mr-1"></i>エンジン:</span>
+                        <div class="bg-slate-900 rounded-lg p-1 flex">
+                            <button id="engineBrowser" class="px-3 py-1 rounded-md text-xs font-medium transition-all bg-slate-700 text-white shadow-sm">標準</button>
+                            <button id="engineAI" class="px-3 py-1 rounded-md text-xs font-medium text-slate-400 transition-all hover:text-white bg-transparent">AI</button>
+                        </div>
+                    </div>
                     
-                    <button id="clearBtn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 p-3 rounded-full flex items-center justify-center w-11 h-11 transition border border-slate-600 shadow-sm" title="テキストを消去">
-                        <i class="fa-solid fa-eraser"></i>
-                    </button>
+                    <div class="flex items-center justify-between sm:justify-end gap-2">
+                        <span class="text-slate-400 text-xs"><i class="fa-solid fa-earth-americas text-xs mr-1"></i>発音:</span>
+                        <div class="bg-slate-900 rounded-lg p-1 flex">
+                            <button id="accentUS" class="px-3 py-1 rounded-md text-xs font-medium transition-all bg-slate-700 text-white shadow-sm">🇺🇸 US</button>
+                            <button id="accentUK" class="px-3 py-1 rounded-md text-xs font-medium text-slate-400 transition-all hover:text-white bg-transparent">🇬🇧 UK</button>
+                        </div>
+                    </div>
                 </div>
-
-                <button id="voiceBtn" class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white px-5 py-2.5 rounded-full flex items-center justify-center space-x-2 transition shadow-lg shadow-indigo-900/40 border border-indigo-400">
-                    <i class="fa-solid fa-microphone" id="micIcon"></i>
-                    <span id="voiceBtnText" class="text-sm font-semibold">声で入力</span>
-                </button>
+                
+                <div class="flex items-center justify-between sm:justify-end gap-2 text-sm">
+                    <span class="text-slate-400 text-xs"><i class="fa-solid fa-user text-xs mr-1"></i>話者:</span>
+                    <div class="flex-1 sm:flex-none sm:w-[200px]">
+                        <select id="voiceSelect" class="w-full bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-blue-500">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                </div>
             </div>
 
-            <button id="submitBtn" class="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center space-x-2">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                <span id="submitBtnText">英語フレーズに変換・解析する</span>
+            <!-- 大きく配置した音声入力ボタン -->
+            <button id="micBtn" class="w-full mt-4 bg-slate-800 border border-slate-700 hover:border-slate-600 text-blue-400 py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm">
+                <i class="fa-solid fa-microphone text-lg flex-shrink-0"></i>
+                <span class="font-medium text-sm">音声でテキストを入力</span>
             </button>
-        </div>
 
-        <div id="toast" class="hidden bg-indigo-950 border border-indigo-800 text-indigo-300 text-xs rounded-xl p-3 text-center transition-all duration-300">
-            通信中...
-        </div>
+            <button id="analyzeBtn" class="w-full mt-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium py-3 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span>AIでネイティブ英語に変換</span>
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+        </section>
 
-        <div id="resultArea" class="hidden space-y-4">
-            <h2 class="text-xs font-bold text-slate-400 tracking-wider flex items-center gap-1.5 px-1">
-                <i class="fa-solid fa-circle-check text-emerald-400 animate-bounce"></i> 
-                ネイティブの英語表現
-            </h2>
+        <section id="resultSection" class="hidden space-y-4 animate-fade-in">
+            <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider ml-1">Result</h2>
             
-            <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-md relative overflow-hidden group">
-                <div class="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
-                <div class="flex justify-between items-start mb-2">
-                    <span class="text-xs font-bold text-emerald-400 bg-emerald-950 border border-emerald-900 px-2 py-0.5 rounded">日常・カジュアル</span>
-                    <button class="speakBtn text-indigo-400 hover:text-indigo-300 p-2 rounded-full hover:bg-slate-700 transition" data-target="phraseCasual">
-                        <i class="fa-solid fa-volume-high text-lg"></i>
+            <!-- Casual -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-850 border border-slate-700 rounded-2xl p-5 shadow-lg relative">
+                <div class="absolute -top-3 left-4 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-0.5 rounded-full text-xs font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-mug-hot"></i> Casual / Daily
+                </div>
+                <div class="mt-2 flex justify-between items-start gap-4">
+                    <p id="casualText" class="text-lg sm:text-xl font-medium leading-relaxed font-sans text-white"></p>
+                    <button class="play-btn flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-colors" data-target="casualText">
+                        <i class="fa-solid fa-play"></i>
                     </button>
                 </div>
-                <p id="phraseCasual" class="text-lg font-bold text-slate-100 select-all"></p>
             </div>
 
-            <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-md relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-1 h-full bg-cyan-500"></div>
-                <div class="flex justify-between items-start mb-2">
-                    <span class="text-xs font-bold text-cyan-400 bg-cyan-950 border border-cyan-900 px-2 py-0.5 rounded">少し丁寧・ビジネス</span>
-                    <button class="speakBtn text-indigo-400 hover:text-indigo-300 p-2 rounded-full hover:bg-slate-700 transition" data-target="phraseFormal">
-                        <i class="fa-solid fa-volume-high text-lg"></i>
+            <!-- Business -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-850 border border-slate-700 rounded-2xl p-5 shadow-lg relative">
+                <div class="absolute -top-3 left-4 bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-0.5 rounded-full text-xs font-bold flex items-center gap-1.5">
+                    <i class="fa-solid fa-briefcase"></i> Polite / Business
+                </div>
+                <div class="mt-2 flex justify-between items-start gap-4">
+                    <p id="businessText" class="text-lg sm:text-xl font-medium leading-relaxed font-sans text-white"></p>
+                    <button class="play-btn flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-colors" data-target="businessText">
+                        <i class="fa-solid fa-play"></i>
                     </button>
                 </div>
-                <p id="phraseFormal" class="text-lg font-bold text-slate-100 select-all"></p>
             </div>
 
-            <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-md">
-                <span class="text-xs font-bold text-indigo-400 bg-indigo-950 border border-indigo-900 px-2 py-0.5 rounded">ワンポイント解説</span>
-                <p id="phraseExplanation" class="text-sm text-slate-300 mt-2 leading-relaxed"></p>
-            </div>
-        </div>
-
-        <div id="historySection" class="space-y-3">
-            <div class="flex justify-between items-center px-1">
-                <h3 class="text-xs font-bold text-slate-400 tracking-wider">
-                    <i class="fa-solid fa-clock-rotate-left mr-1"></i> 学習履歴 (キャッシュから再生可能)
+            <!-- Advice -->
+            <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-4 shadow-inner mt-2">
+                <h3 class="text-xs font-bold text-amber-400 mb-2 flex items-center gap-1.5">
+                    <i class="fa-regular fa-lightbulb"></i> ワンポイント解説
                 </h3>
-                <button id="clearHistoryBtn" class="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
-                    <i class="fa-solid fa-trash-can text-[10px]"></i> 履歴クリア
+                <p id="adviceText" class="text-sm text-slate-300 leading-relaxed"></p>
+            </div>
+        </section>
+
+        <section id="historySection" class="pt-6 pb-12">
+            <div class="flex justify-between items-center mb-4 px-1">
+                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 学習履歴
+                </h2>
+                <button id="clearHistoryBtn" class="text-xs text-red-400 hover:text-red-300 transition-colors hidden">
+                    <i class="fa-solid fa-trash-can mr-1"></i>履歴をクリア
                 </button>
             </div>
-            <div id="historyList" class="space-y-2">
-                <p id="emptyHistoryText" class="text-xs text-center text-slate-500 py-6">履歴はまだありません。フレーズを作成してスタートしましょう！</p>
+            
+            <div id="historyList" class="space-y-3">
+                <p class="text-slate-500 text-sm text-center py-4 bg-slate-800/30 rounded-xl border border-dashed border-slate-700">履歴はまだありません</p>
             </div>
-        </div>
-
+        </section>
     </main>
 
-    <div class="fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 p-3 shadow-2xl z-20">
-        <div class="max-w-md mx-auto flex flex-col gap-2">
-            <div class="flex bg-slate-950 rounded-xl p-0.5 border border-slate-700 text-xs font-bold">
-                <button class="engineTab flex-1 py-2 rounded-lg transition text-center bg-indigo-600 text-white" data-engine="browser">
-                    🌐 ブラウザ標準ボイス
-                </button>
-                <button class="engineTab flex-1 py-2 rounded-lg transition text-center text-slate-400" data-engine="gemini">
-                    ✨ Gemini 超リアルAIボイス
-                </button>
-            </div>
-
-            <div class="flex items-center justify-between gap-3">
-                <div id="browserAccentContainer" class="flex bg-slate-900 rounded-lg p-0.5 border border-slate-700/60">
-                    <button class="accentTab px-2.5 py-1.5 rounded-md text-[11px] font-bold transition bg-indigo-600 text-white" data-accent="en-US">🇺🇸 US</button>
-                    <button class="accentTab px-2.5 py-1.5 rounded-md text-[11px] font-bold text-slate-400" data-accent="en-GB">🇬🇧 UK</button>
-                </div>
-
-                <div class="flex-1 flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5">
-                    <i class="fa-solid fa-circle-user text-indigo-400 text-xs"></i>
-                    <select id="voiceSelect" class="bg-transparent text-xs text-slate-200 focus:outline-none w-full cursor-pointer">
-                        </select>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="apiKeyModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-2xl p-6 shadow-2xl space-y-4">
-            <div class="flex justify-between items-start">
-                <div class="flex items-center space-x-2">
-                    <i class="fa-solid fa-key text-yellow-400 text-lg"></i>
-                    <h2 class="text-md font-bold text-slate-100">Gemini APIキーの登録</h2>
-                </div>
-                <button id="closeModalBtn" class="text-slate-400 hover:text-slate-200 p-1"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <p class="text-xs text-slate-400 leading-relaxed">
-                キーはブラウザの内部（localStorage）にのみ保存され、外部サーバーへ直接送信されることはありません。
+    <div id="apiKeyModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-fade-in relative">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-lg font-bold mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-key text-yellow-500"></i> APIキー設定
+            </h3>
+            <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+                Gemini APIキーを登録するとフル機能が利用できます。キーは端末（ブラウザ）内にのみ安全に保存されます。<br>
+                ※未登録の場合はダミーデータを返す「デモモード」で動作します。
             </p>
-            <input type="password" id="apiKeyInput" 
-                class="w-full bg-slate-900 text-slate-100 rounded-xl p-3 border border-slate-700 focus:outline-none focus:border-indigo-500 text-sm" 
-                placeholder="AI Studioから取得した AIzaSy... キーを入力">
-            <div class="flex gap-2 justify-end pt-2">
-                <button id="saveKeyBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition">保存</button>
+            <div class="space-y-4">
+                <div>
+                    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div class="flex gap-2">
+                    <button id="removeKeyBtn" class="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-800 transition-colors">削除</button>
+                    <button id="saveKeyBtn" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors shadow-lg shadow-blue-900/30">保存</button>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-slate-800 text-center">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-xs text-blue-400 hover:underline">
+                    Google AI Studioでキーを取得 <i class="fa-solid fa-external-link-alt text-[10px] ml-0.5"></i>
+                </a>
             </div>
         </div>
     </div>
 
     <script>
-        // System State
-        let apiKey = localStorage.getItem('gemini_api_key') || '';
-        let currentEngine = 'browser'; // 'browser' or 'gemini'
-        let currentAccent = 'en-US';   // 'en-US' or 'en-GB'
-        let availableVoices = [];
-        let history = JSON.parse(localStorage.getItem('ai_coach_history')) || [];
-        let base64Image = null;
-        let imageMimeType = null;
-        let activeAudioSource = null;
+        // --- State Variables ---
+        let state = {
+            apiKey: localStorage.getItem('nativeSense_apiKey') || '',
+            history: JSON.parse(localStorage.getItem('nativeSense_history') || '[]'),
+            ttsEngine: 'browser', // 'browser' | 'ai'
+            accent: localStorage.getItem('nativeSense_accent') || 'US', // 'US' | 'UK'
+            browserVoiceUri: localStorage.getItem('nativeSense_bVoice') || '',
+            aiVoiceName: localStorage.getItem('nativeSense_aiVoice') || 'Zephyr'
+        };
 
-        const geminiVoices = [
-            { name: "Puck (男性・快活)", id: "Puck" },
-            { name: "Charon (男性・落ち着き)", id: "Charon" },
-            { name: "Kore (女性・クリア)", id: "Kore" },
-            { name: "Fenrir (男性・ディープ)", id: "Fenrir" },
-            { name: "Aoede (女性・エレガント)", id: "Aoede" }
+        const AI_VOICES = [
+            { id: 'Zephyr', name: 'Zephyr (Bright)' },
+            { id: 'Puck', name: 'Puck (Upbeat)' },
+            { id: 'Charon', name: 'Charon (Informative)' },
+            { id: 'Kore', name: 'Kore (Firm)' },
+            { id: 'Fenrir', name: 'Fenrir (Excitable)' }
         ];
 
-        // Core Selectors
-        const inputText = document.getElementById('inputText');
-        const charCount = document.getElementById('charCount');
-        const submitBtn = document.getElementById('submitBtn');
-        const submitBtnText = document.getElementById('submitBtnText');
-        const voiceBtn = document.getElementById('voiceBtn');
-        const voiceBtnText = document.getElementById('voiceBtnText');
-        const micIcon = document.getElementById('micIcon');
-        const clearBtn = document.getElementById('clearBtn');
-        const toast = document.getElementById('toast');
-        const resultArea = document.getElementById('resultArea');
-        const phraseCasual = document.getElementById('phraseCasual');
-        const phraseFormal = document.getElementById('phraseFormal');
-        const phraseExplanation = document.getElementById('phraseExplanation');
-        const voiceSelect = document.getElementById('voiceSelect');
-        const apiKeyBtn = document.getElementById('apiKeyBtn');
-        const keyStatusText = document.getElementById('keyStatusText');
-        const apiKeyModal = document.getElementById('apiKeyModal');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        const saveKeyBtn = document.getElementById('saveKeyBtn');
-        const historyList = document.getElementById('historyList');
-        const emptyHistoryText = document.getElementById('emptyHistoryText');
-        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-        const imageInput = document.getElementById('imageInput');
-        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-        const imagePreview = document.getElementById('imagePreview');
-        const removeImageBtn = document.getElementById('removeImageBtn');
-        const browserAccentContainer = document.getElementById('browserAccentContainer');
+        let browserVoices = [];
+        let isRecording = false;
+        let speechRecognition = null;
+        let currentAudio = null; // For AI TTS Audio playback
 
-        // Speech Recognition Setup
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition = null;
-        let isListening = false;
+        // --- DOM Elements ---
+        const els = {
+            inputText: document.getElementById('inputText'),
+            charCount: document.getElementById('charCount'),
+            clearBtn: document.getElementById('clearBtn'),
+            micBtn: document.getElementById('micBtn'),
+            engineBrowser: document.getElementById('engineBrowser'),
+            engineAI: document.getElementById('engineAI'),
+            accentUS: document.getElementById('accentUS'),
+            accentUK: document.getElementById('accentUK'),
+            voiceSelect: document.getElementById('voiceSelect'),
+            analyzeBtn: document.getElementById('analyzeBtn'),
+            
+            resultSection: document.getElementById('resultSection'),
+            casualText: document.getElementById('casualText'),
+            businessText: document.getElementById('businessText'),
+            adviceText: document.getElementById('adviceText'),
+            
+            historySection: document.getElementById('historySection'),
+            historyList: document.getElementById('historyList'),
+            clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+            
+            apiKeyBtn: document.getElementById('apiKeyBtn'),
+            apiKeyStatusText: document.getElementById('apiKeyStatusText'),
+            apiKeyModal: document.getElementById('apiKeyModal'),
+            closeModalBtn: document.getElementById('closeModalBtn'),
+            apiKeyInput: document.getElementById('apiKeyInput'),
+            saveKeyBtn: document.getElementById('saveKeyBtn'),
+            removeKeyBtn: document.getElementById('removeKeyBtn'),
+        };
 
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'ja-JP';
-
-            recognition.onstart = () => {
-                isListening = true;
-                voiceBtn.classList.replace('bg-indigo-600', 'bg-red-600');
-                voiceBtn.classList.replace('border-indigo-400', 'border-red-400');
-                micIcon.className = 'fa-solid fa-circle-notch animate-spin';
-                voiceBtnText.textContent = '聞き取り中...';
-                showToast('マイクに向かって話してください 🎤');
-            };
-
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                inputText.value += (inputText.value ? ' ' : '') + transcript;
-                updateCharCount();
-            };
-
-            recognition.onerror = (event) => {
-                console.error(event.error);
-                showToast(`音声エラー: ${event.error === 'not-allowed' ? 'マイクのアクセス許可が必要です' : event.error}`);
-                stopListening();
-            };
-
-            recognition.onend = () => { stopListening(); };
+        // --- UI / Toast System ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast animate-fade-in flex items-center gap-2';
+            
+            let icon = '<i class="fa-solid fa-circle-info text-blue-400"></i>';
+            if (type === 'success') icon = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+            if (type === 'error') icon = '<i class="fa-solid fa-circle-exclamation text-red-400"></i>';
+            
+            toast.innerHTML = `${icon} <span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
-        function stopListening() {
-            isListening = false;
-            voiceBtn.classList.replace('bg-red-600', 'bg-indigo-600');
-            voiceBtn.classList.replace('border-red-400', 'border-indigo-400');
-            micIcon.className = 'fa-solid fa-microphone';
-            voiceBtnText.textContent = '声で入力';
-            hideToast();
+        function setButtonLoading(btn, isLoading, originalText, iconClass) {
+            if (isLoading) {
+                btn.disabled = true;
+                btn.innerHTML = `<div class="loader mr-2"></div> 処理中...`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `<span>${originalText}</span> <i class="${iconClass}"></i>`;
+            }
         }
 
-        voiceBtn.addEventListener('click', () => {
-            if (!recognition) {
-                showToast('お使いのブラウザは音声認識をサポートしていません。Safariでお試しください。');
+        // --- Initialization ---
+        function init() {
+            updateApiKeyUI();
+            renderHistory();
+            initSpeechRecognition();
+            initTTS();
+            setupEventListeners();
+        }
+
+        // --- API Key Management ---
+        function updateApiKeyUI() {
+            if (state.apiKey) {
+                els.apiKeyBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20";
+                els.apiKeyStatusText.textContent = "APIキー有効";
+            } else {
+                els.apiKeyBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-yellow-500/50 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20";
+                els.apiKeyStatusText.textContent = "デモモード";
+            }
+        }
+
+        function setupEventListeners() {
+            // Text Input
+            els.inputText.addEventListener('input', () => {
+                els.charCount.textContent = `${els.inputText.value.length} / 200`;
+            });
+
+            els.clearBtn.addEventListener('click', () => {
+                els.inputText.value = '';
+                els.charCount.textContent = '0 / 200';
+                els.inputText.focus();
+            });
+
+            // Modal
+            els.apiKeyBtn.addEventListener('click', () => {
+                els.apiKeyInput.value = state.apiKey;
+                els.apiKeyModal.classList.remove('hidden');
+            });
+            els.closeModalBtn.addEventListener('click', () => els.apiKeyModal.classList.add('hidden'));
+            
+            els.saveKeyBtn.addEventListener('click', () => {
+                const key = els.apiKeyInput.value.trim();
+                state.apiKey = key;
+                localStorage.setItem('nativeSense_apiKey', key);
+                updateApiKeyUI();
+                els.apiKeyModal.classList.add('hidden');
+                showToast('APIキーを保存しました', 'success');
+            });
+
+            els.removeKeyBtn.addEventListener('click', () => {
+                state.apiKey = '';
+                localStorage.removeItem('nativeSense_apiKey');
+                updateApiKeyUI();
+                els.apiKeyInput.value = '';
+                els.apiKeyModal.classList.add('hidden');
+                showToast('APIキーを削除し、デモモードに移行しました', 'info');
+            });
+
+            // Engine Toggle
+            els.engineBrowser.addEventListener('click', () => switchTTSEngine('browser'));
+            els.engineAI.addEventListener('click', () => switchTTSEngine('ai'));
+            
+            // Accent Toggle
+            els.accentUS.addEventListener('click', () => switchAccent('US'));
+            els.accentUK.addEventListener('click', () => switchAccent('UK'));
+            
+            // Voice Select Change
+            els.voiceSelect.addEventListener('change', (e) => {
+                if (state.ttsEngine === 'browser') {
+                    state.browserVoiceUri = e.target.value;
+                    localStorage.setItem('nativeSense_bVoice', state.browserVoiceUri);
+                } else {
+                    state.aiVoiceName = e.target.value;
+                    localStorage.setItem('nativeSense_aiVoice', state.aiVoiceName);
+                }
+            });
+
+            // Action
+            els.analyzeBtn.addEventListener('click', handleAnalyze);
+
+            // Play Buttons
+            document.querySelectorAll('.play-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const targetId = e.currentTarget.getAttribute('data-target');
+                    const text = document.getElementById(targetId).textContent;
+                    if(text) playTTS(text);
+                });
+            });
+
+            // History Clear
+            els.clearHistoryBtn.addEventListener('click', () => {
+                state.history = [];
+                localStorage.removeItem('nativeSense_history');
+                renderHistory();
+                showToast('履歴をクリアしました');
+            });
+        }
+
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                speechRecognition = new SpeechRecognition();
+                speechRecognition.lang = 'ja-JP';
+                speechRecognition.interimResults = false;
+                speechRecognition.maxAlternatives = 1;
+
+                speechRecognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    const currentText = els.inputText.value;
+                    els.inputText.value = currentText + (currentText ? ' ' : '') + transcript;
+                    els.charCount.textContent = `${els.inputText.value.length} / 200`;
+                    stopRecording();
+                };
+
+                speechRecognition.onerror = (event) => {
+                    console.warn("Speech config error", event.error);
+                    stopRecording();
+                    showToast(`音声入力エラー: ${event.error}`, 'error');
+                };
+
+                speechRecognition.onend = () => {
+                    stopRecording();
+                };
+
+                els.micBtn.addEventListener('click', toggleRecording);
+            } else {
+                els.micBtn.style.display = 'none'; // Hide if not supported (some iOS webviews)
+            }
+        }
+
+        function toggleRecording() {
+            if (!speechRecognition) return;
+            if (isRecording) {
+                speechRecognition.stop();
+            } else {
+                try {
+                    speechRecognition.start();
+                    isRecording = true;
+                    // ボタンを録音中のデザインに変更
+                    els.micBtn.classList.remove('bg-slate-800', 'text-blue-400', 'border-slate-700', 'hover:border-slate-600');
+                    els.micBtn.classList.add('bg-red-500', 'text-white', 'border-red-400', 'animate-pulse');
+                    els.micBtn.innerHTML = '<i class="fa-solid fa-stop text-lg flex-shrink-0"></i><span class="font-medium text-sm">音声入力中... (タップで停止)</span>';
+                    showToast('音声入力中...', 'info');
+                } catch (e) {
+                    showToast('マイクにアクセスできませんでした', 'error');
+                }
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            // ボタンを元のデザインに戻す
+            els.micBtn.classList.remove('bg-red-500', 'text-white', 'border-red-400', 'animate-pulse');
+            els.micBtn.classList.add('bg-slate-800', 'text-blue-400', 'border-slate-700', 'hover:border-slate-600');
+            els.micBtn.innerHTML = '<i class="fa-solid fa-microphone text-lg flex-shrink-0"></i><span class="font-medium text-sm">音声でテキストを入力</span>';
+        }
+
+        function initTTS() {
+            switchTTSEngine(state.ttsEngine);
+            switchAccent(state.accent);
+            
+            // Standard TTS voices load asynchronously
+            if ('speechSynthesis' in window) {
+                speechSynthesis.onvoiceschanged = () => {
+                    if (state.ttsEngine === 'browser') populateBrowserVoices();
+                };
+            }
+        }
+
+        function switchTTSEngine(engine) {
+            state.ttsEngine = engine;
+            els.voiceSelect.innerHTML = '';
+            
+            if (engine === 'browser') {
+                els.engineBrowser.className = "px-3 py-1 rounded-md text-xs font-medium transition-all bg-slate-700 text-white shadow-sm";
+                els.engineAI.className = "px-3 py-1 rounded-md text-xs font-medium text-slate-400 transition-all hover:text-white bg-transparent";
+                populateBrowserVoices();
+            } else {
+                els.engineAI.className = "px-3 py-1 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm";
+                els.engineBrowser.className = "px-3 py-1 rounded-md text-xs font-medium text-slate-400 transition-all hover:text-white bg-transparent";
+                populateAIVoices();
+            }
+        }
+
+        function switchAccent(accent) {
+            state.accent = accent;
+            localStorage.setItem('nativeSense_accent', accent);
+            
+            if (accent === 'US') {
+                els.accentUS.className = "px-3 py-1 rounded-md text-xs font-medium transition-all bg-slate-700 text-white shadow-sm";
+                els.accentUK.className = "px-3 py-1 rounded-md text-xs font-medium text-slate-400 transition-all hover:text-white bg-transparent";
+            } else {
+                els.accentUK.className = "px-3 py-1 rounded-md text-xs font-medium transition-all bg-slate-700 text-white shadow-sm";
+                els.accentUS.className = "px-3 py-1 rounded-md text-xs font-medium text-slate-400 transition-all hover:text-white bg-transparent";
+            }
+            
+            if (state.ttsEngine === 'browser') {
+                populateBrowserVoices();
+            }
+        }
+
+        function populateBrowserVoices() {
+            if (!('speechSynthesis' in window)) {
+                els.voiceSelect.innerHTML = '<option value="">非対応ブラウザ</option>';
                 return;
             }
-            if (isListening) recognition.stop(); else recognition.start();
-        });
+            
+            let allEnglishVoices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+            if (allEnglishVoices.length === 0) {
+                els.voiceSelect.innerHTML = '<option value="">英語音声のロード待ち...</option>';
+                return;
+            }
 
-        inputText.addEventListener('input', updateCharCount);
-        function updateCharCount() {
-            charCount.textContent = `${inputText.value.length} 文字`;
-        }
-
-        // Camera / Image upload Handling
-        imageInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            imageMimeType = file.type;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                base64Image = e.target.result.split(',')[1];
-                imagePreview.src = e.target.result;
-                imagePreviewContainer.classList.remove('hidden');
-                inputText.placeholder = "この画像について「英語でなんて言う？」または質問を入力してください...";
-            };
-            reader.readAsDataURL(file);
-        });
-
-        removeImageBtn.addEventListener('click', () => {
-            base64Image = null;
-            imageMimeType = null;
-            imageInput.value = '';
-            imagePreview.src = '';
-            imagePreviewContainer.classList.add('hidden');
-            inputText.placeholder = "「これ英語でなんて言う？」や、直したい英文を入力するか、マイクボタンで話しかけてください...";
-        });
-
-        // Speaker Engine Rendering
-        function renderSpeakers() {
-            voiceSelect.innerHTML = '';
-            if (currentEngine === 'browser') {
-                browserAccentContainer.classList.remove('opacity-30', 'pointer-events-none');
-                const filtered = availableVoices.filter(v => v.lang.startsWith(currentAccent));
-                const targetList = filtered.length > 0 ? filtered : availableVoices.filter(v => v.lang.startsWith('en'));
-                
-                targetList.forEach(v => {
-                    const opt = document.createElement('option');
-                    opt.value = v.name;
-                    opt.textContent = v.name;
-                    voiceSelect.appendChild(opt);
-                });
+            // Filter by accent
+            if (state.accent === 'US') {
+                browserVoices = allEnglishVoices.filter(v => v.lang.includes('US'));
+                if (browserVoices.length === 0) browserVoices = allEnglishVoices; // fallback
             } else {
-                // Gemini Ultra AI Voice list
-                browserAccentContainer.classList.add('opacity-30', 'pointer-events-none');
-                geminiVoices.forEach(v => {
-                    const opt = document.createElement('option');
-                    opt.value = v.id;
-                    opt.textContent = v.name;
-                    voiceSelect.appendChild(opt);
-                });
+                browserVoices = allEnglishVoices.filter(v => v.lang.includes('GB') || v.lang.includes('UK'));
+                if (browserVoices.length === 0) browserVoices = allEnglishVoices; // fallback
             }
-            if (voiceSelect.children.length === 0) {
-                const opt = document.createElement('option');
-                opt.textContent = "標準ボイス (Default)";
-                voiceSelect.appendChild(opt);
-            }
-        }
 
-        function loadBrowserVoices() {
-            availableVoices = window.speechSynthesis.getVoices();
-            renderSpeakers();
-        }
-        if (window.speechSynthesis.onvoiceschanged !== undefined) {
-            window.speechSynthesis.onvoiceschanged = loadBrowserVoices;
-        }
-        loadBrowserVoices();
+            els.voiceSelect.innerHTML = '';
+            let selectedUri = state.browserVoiceUri;
+            let found = false;
 
-        // Voice Engine Tabs
-        document.querySelectorAll('.engineTab').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.engineTab').forEach(b => b.classList.remove('bg-indigo-600', 'text-white'));
-                btn.classList.add('bg-indigo-600', 'text-white');
-                currentEngine = btn.dataset.engine;
-                renderSpeakers();
-            });
-        });
-
-        // Browser Accent Selector
-        document.querySelectorAll('.accentTab').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.accentTab').forEach(b => b.classList.remove('bg-indigo-600', 'text-white'));
-                btn.classList.add('bg-indigo-600', 'text-white');
-                currentAccent = btn.dataset.accent;
-                renderSpeakers();
-            });
-        });
-
-        // Play Raw Linear PCM (16-bit, 24kHz) from Gemini API
-        function playPcmBase64(base64Data, sampleRate = 24000) {
-            try {
-                if (activeAudioSource) { activeAudioSource.stop(); }
+            browserVoices.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.voiceURI;
+                // Clean up name for UI
+                let name = voice.name.replace(/English|United States|United Kingdom/ig, '').trim();
+                let region = voice.lang.includes('GB') || voice.lang.includes('UK') ? 'UK' : 'US';
+                option.textContent = `${region} - ${name || voice.name}`;
                 
-                const binaryString = window.atob(base64Data);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) { bytes[i] = binaryString.charCodeAt(i); }
-                
-                const numSamples = len / 2;
-                const int16Array = new Int16Array(bytes.buffer);
-                
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const audioBuffer = audioCtx.createBuffer(1, numSamples, sampleRate);
-                const channelData = audioBuffer.getChannelData(0);
-                
-                for (let i = 0; i < numSamples; i++) {
-                    channelData[i] = int16Array[i] / 32768.0;
+                if (voice.voiceURI === selectedUri) {
+                    option.selected = true;
+                    found = true;
                 }
-                
-                activeAudioSource = audioCtx.createBufferSource();
-                activeAudioSource.buffer = audioBuffer;
-                activeAudioSource.connect(audioCtx.destination);
-                activeAudioSource.start();
-            } catch (e) {
-                console.error("PCM再生エラー:", e);
-                showToast("音声の再生に失敗しました。");
+                els.voiceSelect.appendChild(option);
+            });
+
+            if (!found && browserVoices.length > 0) {
+                els.voiceSelect.options[0].selected = true;
+                state.browserVoiceUri = browserVoices[0].voiceURI;
             }
         }
 
-        // Core Text-to-Speech Router
-        async function speakText(text) {
-            if (!text) return;
-            window.speechSynthesis.cancel();
-            if (activeAudioSource) { try { activeAudioSource.stop(); } catch(e){} }
+        function populateAIVoices() {
+            els.voiceSelect.innerHTML = '';
+            AI_VOICES.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.id;
+                option.textContent = voice.name;
+                if (voice.id === state.aiVoiceName) option.selected = true;
+                els.voiceSelect.appendChild(option);
+            });
+        }
 
-            if (currentEngine === 'browser' || !apiKey) {
-                // Browser Native TTS
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = currentAccent;
-                const selectedVoice = availableVoices.find(v => v.name === voiceSelect.value);
-                if (selectedVoice) utterance.voice = selectedVoice;
-                window.speechSynthesis.speak(utterance);
+        async function playTTS(text) {
+            // Stop any currently playing audio
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            window.speechSynthesis.cancel();
+
+            if (state.ttsEngine === 'browser') {
+                playBrowserTTS(text);
             } else {
-                // Gemini Advanced Real-time Audio Generation
-                showToast("AIボイス生成中... 🎙️");
-                const voiceId = voiceSelect.value || "Puck";
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-                
-                const body = {
-                    contents: [{ parts: [{ text: `Read the following English phrase clearly with natural native intonation and speed. Do not add any introduction or extra words, output raw speech audio only: "${text}"` }] }],
+                await playAITTS(text);
+            }
+        }
+
+        function playBrowserTTS(text) {
+            if (!('speechSynthesis' in window)) return;
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            const voice = browserVoices.find(v => v.voiceURI === state.browserVoiceUri) || browserVoices[0];
+            if (voice) utterance.voice = voice;
+            utterance.rate = 0.9; // Slightly slower for learning
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // PCM L16 to WAV conversion
+        function pcmToWav(pcmData, sampleRate) {
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+            const blockAlign = numChannels * (bitsPerSample / 8);
+            const dataSize = pcmData.length * 2;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            // Helper
+            const writeString = (view, offset, string) => {
+                for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
+            };
+
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true); // PCM
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataSize, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++, offset += 2) {
+                view.setInt16(offset, pcmData[i], true);
+            }
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binary_string.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        async function playAITTS(text) {
+            if (!state.apiKey) {
+                showToast('AI音声にはAPIキーが必要です。標準音声を使用します。', 'info');
+                playBrowserTTS(text);
+                return;
+            }
+
+            showToast('AI音声を生成中...', 'info');
+            try {
+                // 発音の指示をプロンプトに追加
+                const promptText = state.accent === 'UK' 
+                    ? `Speak in a clear British English accent: ${text}` 
+                    : `Speak in a clear American English accent: ${text}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: promptText }] }],
                     generationConfig: {
                         responseModalities: ["AUDIO"],
                         speechConfig: {
-                            voiceConfig: {
-                                prebuiltVoiceConfig: { voiceName: voiceId }
-                            }
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: state.aiVoiceName } }
                         }
-                    }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
                 };
 
-                try {
-                    const data = await fetchWithRetry(url, body);
-                    const base64Audio = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-                    if (base64Audio) {
-                        hideToast();
-                        playPcmBase64(base64Audio);
-                    } else {
-                        throw new Error("音声データが空です");
-                    }
-                } catch (err) {
-                    console.error(err);
-                    showToast("AIボイスの取得に失敗したため、標準音声で再生します。");
-                    // Fallback to browser standard voice
-                    const utterance = new SpeechSynthesisUtterance(text);
-                    utterance.lang = currentAccent;
-                    window.speechSynthesis.speak(utterance);
-                }
-            }
-        }
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${state.apiKey}`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-        // Speaker Click Triggers
-        document.querySelectorAll('.speakBtn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const text = document.getElementById(btn.dataset.target).textContent;
-                speakText(text);
-            });
-        });
+                if (!response.ok) throw new Error('API request failed');
 
-        clearBtn.addEventListener('click', () => {
-            inputText.value = '';
-            updateCharCount();
-            removeImageBtn.click();
-            resultArea.classList.add('hidden');
-        });
+                const result = await response.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+                const audioData = part?.inlineData?.data;
+                const mimeType = part?.inlineData?.mimeType;
 
-        // Modal Controls
-        apiKeyBtn.addEventListener('click', () => {
-            apiKeyInput.value = apiKey;
-            apiKeyModal.classList.remove('hidden');
-        });
-        closeModalBtn.addEventListener('click', () => { apiKeyModal.classList.add('hidden'); });
-        saveKeyBtn.addEventListener('click', () => {
-            apiKey = apiKeyInput.value.trim();
-            localStorage.setItem('gemini_api_key', apiKey);
-            updateKeyStatus();
-            apiKeyModal.classList.add('hidden');
-            showToast('APIキーをローカルに保存しました 🔑');
-            setTimeout(hideToast, 1500);
-        });
-
-        function updateKeyStatus() {
-            if (apiKey) {
-                keyStatusText.textContent = 'APIキー有効';
-                keyStatusText.className = 'text-emerald-400 font-semibold';
-            } else {
-                keyStatusText.textContent = 'APIキー設定';
-                keyStatusText.className = 'text-slate-200';
-            }
-        }
-        updateKeyStatus();
-
-        // Fetch engine with Exponential Backoff Algorithm for Robustness (503 / 429 errors mitigation)
-        async function fetchWithRetry(url, body, retries = 3, delay = 1500) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(body)
-                    });
-                    if (response.status === 200) return await response.json();
-                    if (response.status === 503 || response.status === 429) {
-                        showToast(`サーバー混雑中... 再試行します (${i + 1}/${retries})`);
-                        await new Promise(res => setTimeout(res, delay));
-                        delay *= 2;
-                        continue;
-                    }
-                    throw new Error(`API Error: ${response.status}`);
-                } catch (err) {
-                    if (i === retries - 1) throw err;
-                    await new Promise(res => setTimeout(res, delay));
-                }
-            }
-        }
-
-        // Main Execution Logic
-        submitBtn.addEventListener('click', async () => {
-            const promptInput = inputText.value.trim();
-            if (!promptInput && !base64Image) {
-                showToast('テキストを入力するか、マイク・カメラから入力してください！');
-                return;
-            }
-
-            setLoading(true);
-
-            // Free Tier / Demo fallback mode when API key is missing
-            if (!apiKey) {
-                setTimeout(() => {
-                    const sampleTranslations = {
-                        "お腹が空いた": "I'm starving.",
-                        "ありがとう": "Thank you from the bottom of my heart.",
-                        "手伝って": "Could you give me a hand?",
-                        "お疲れ様": "Great job today."
-                    };
-                    let fallbackEng = "I would like to express this idea in natural English.";
-                    for (let key in sampleTranslations) {
-                        if (promptInput.includes(key)) fallbackEng = sampleTranslations[key];
-                    }
+                if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                    const match = mimeType.match(/rate=(\d+)/);
+                    const sampleRate = match ? parseInt(match[1], 10) : 24000;
                     
-                    displayResults({
-                        casual: fallbackEng,
-                        formal: `I wanted to smoothly let you know that: ${fallbackEng}`,
-                        explanation: base64Image ? "【デモモード】画像を認識しました。右上の「APIキー設定」からご自身のキーを登録すると、Gemini 2.5 Flashのフル機能によって、写真の具体的な内容に基づいた実践的な添削とハイレベルな解説が生成されます。" : "【デモモード】自動翻訳機能が作動しました。APIキーを登録すると、Gemini 2.5のAIブレインによる極めて自然な表現パターンの考案、文法の細かなニュアンス、および発音矯正のワンポイント解説が出力されます。"
-                    });
-                    setLoading(false);
-                }, 1200);
+                    const pcmBuffer = base64ToArrayBuffer(audioData);
+                    const pcm16 = new Int16Array(pcmBuffer);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    currentAudio = new Audio(audioUrl);
+                    currentAudio.play();
+                } else {
+                    throw new Error('Invalid audio data format');
+                }
+            } catch (error) {
+                console.error(error);
+                showToast('AI音声の生成に失敗しました。標準音声を使用します。', 'error');
+                playBrowserTTS(text);
+            }
+        }
+
+        async function handleAnalyze() {
+            const text = els.inputText.value.trim();
+            if (!text) {
+                showToast('テキストを入力してください', 'error');
                 return;
             }
 
-            const promptText = "You are an expert native English coach. Analyze the user's input (which may be a Japanese thought, broken English, or an attached image capturing objects/scenery). " +
-                             "Generate the absolute best natural English expressions for two distinct environments: daily casual conversation, and a slightly formal/business scenario. " +
-                             "Provide a brief 1-2 sentence tip or explanation in Japanese about word choice or pronunciation. " +
-                             "Your entire output must be a single valid raw JSON object. Do not wrap it in markdown code blocks like ```
-```text?code_stdout&code_event_index=2
-File created successfully.
+            setButtonLoading(els.analyzeBtn, true, 'AIでネイティブ英語に変換', 'fa-solid fa-wand-magic-sparkles');
+            
+            try {
+                let resultObj;
 
+                if (!state.apiKey) {
+                    // DEMO MODE
+                    await new Promise(r => setTimeout(r, 1000)); // fake delay
+                    resultObj = {
+                        casual: "Can we change tomorrow's meeting to 10 AM?",
+                        business: "Would it be possible to reschedule tomorrow's meeting to 10:00 AM?",
+                        advice: "カジュアルでは Can we change... で十分伝わります。ビジネスシーンでは Would it be possible to... と丁寧にお伺いを立てる表現が好まれます。"
+                    };
+                } else {
+                    // API Call
+                    resultObj = await callGeminiTextAPI(text);
+                }
 
-http://googleusercontent.com/immersive_entry_chip/0
-Your HTML file is ready
-[file-tag: code-generated-file-0-1779002414605887856]
+                // Update UI
+                displayResult(resultObj);
+                
+                // Save History
+                saveToHistory(text, resultObj);
+                
+                // Auto Play casual
+                setTimeout(() => playTTS(resultObj.casual), 300);
 
-お待たせいたしました！すべての機能（Gemini AIボイスのWAV変換再生、カメラ画像認識、US/UK発音切り替え、デモモードのフォールバックなど）を1つに美しく統合した、最新の完全版 `index.html` ファイルを作成しました。
+            } catch (error) {
+                console.error(error);
+                showToast('通信エラーが発生しました。APIキーを確認してください。', 'error');
+            } finally {
+                setButtonLoading(els.analyzeBtn, false, 'AIでネイティブ英語に変換', 'fa-solid fa-wand-magic-sparkles');
+            }
+        }
 
-このファイルをダウンロードして、ご自身のGitHubリポジトリの `index.html` にそのまま上書きアップロードするだけで、iPhoneで本物のネイティブ並みの音声と画像認識を持った最強の英語コーチアプリが起動します。ぜひお試しください！何か設定でご不明な点があれば、いつでもお声がけくださいね。
+        async function callGeminiTextAPI(inputText) {
+            const systemPrompt = `You are an excellent English tutor. The user will provide a Japanese phrase or broken English. 
+Provide a "casual" natural native expression, a "business" polite expression, and a 1-2 sentence "advice" in Japanese explaining the nuances or word choices.`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: inputText }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            casual: { type: "STRING", description: "Casual natural expression" },
+                            business: { type: "STRING", description: "Polite business expression" },
+                            advice: { type: "STRING", description: "Japanese advice (1-2 sentences)" }
+                        },
+                        required: ["casual", "business", "advice"]
+                    }
+                }
+            };
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${state.apiKey}`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const result = await response.json();
+            const textContent = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            
+            if (!textContent) throw new Error('No content returned');
+            
+            return JSON.parse(textContent);
+        }
+
+        function displayResult(data) {
+            els.casualText.textContent = data.casual;
+            els.businessText.textContent = data.business;
+            els.adviceText.textContent = data.advice;
+            
+            els.resultSection.classList.remove('hidden');
+            // Re-trigger animation
+            els.resultSection.classList.remove('animate-fade-in');
+            void els.resultSection.offsetWidth; 
+            els.resultSection.classList.add('animate-fade-in');
+        }
+
+        function saveToHistory(original, data) {
+            const newItem = {
+                id: Date.now(),
+                original: original,
+                casual: data.casual,
+                business: data.business,
+                advice: data.advice,
+                date: new Date().toLocaleDateString('ja-JP')
+            };
+
+            state.history.unshift(newItem);
+            if (state.history.length > 15) {
+                state.history.pop(); // Keep max 15
+            }
+            
+            localStorage.setItem('nativeSense_history', JSON.stringify(state.history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            if (state.history.length === 0) {
+                els.historyList.innerHTML = `<p class="text-slate-500 text-sm text-center py-4 bg-slate-800/30 rounded-xl border border-dashed border-slate-700">履歴はまだありません</p>`;
+                els.clearHistoryBtn.classList.add('hidden');
+                return;
+            }
+
+            els.clearHistoryBtn.classList.remove('hidden');
+            els.historyList.innerHTML = '';
+            
+            state.history.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl flex flex-col gap-2 relative';
+                
+                // Original text & Date
+                el.innerHTML = `
+                    <div class="flex justify-between items-start mb-1">
+                        <p class="text-xs text-slate-400 font-medium line-clamp-1 flex-1 pr-4" title="${item.original}">${item.original}</p>
+                        <span class="text-[10px] text-slate-500">${item.date}</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+                        <p class="text-sm font-medium text-slate-200 line-clamp-2 pr-2">${item.casual}</p>
+                        <button class="history-play-btn flex-shrink-0 w-8 h-8 rounded-full bg-slate-700 text-slate-300 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors" data-text="${item.casual}">
+                            <i class="fa-solid fa-play text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                
+                els.historyList.appendChild(el);
+            });
+
+            // Bind events for history play buttons
+            document.querySelectorAll('.history-play-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const text = e.currentTarget.getAttribute('data-text');
+                    playTTS(text);
+                });
+            });
+        }
+
+        // Start App
+        window.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
