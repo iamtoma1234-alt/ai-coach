@@ -306,6 +306,7 @@
         let isRecording = false;
         let speechRecognition = null;
         let currentAudio = null; // For AI TTS Audio playback
+        const audioCache = new Map(); // 生成した音声を保存するキャッシュ
 
         // --- DOM Elements ---
         const els = {
@@ -704,6 +705,16 @@
                 return;
             }
 
+            // キャッシュキーの作成（話者、アクセント、テキストの組み合わせ）
+            const cacheKey = `${state.aiVoiceName}_${state.accent}_${text}`;
+            
+            // キャッシュが存在する場合はAPIを呼ばずに再生
+            if (audioCache.has(cacheKey)) {
+                currentAudio = new Audio(audioCache.get(cacheKey));
+                currentAudio.play();
+                return;
+            }
+
             showToast('AI音声を生成中...', 'info');
             try {
                 // 発音の指示をプロンプトに追加
@@ -746,6 +757,10 @@
                     const wavBlob = pcmToWav(pcm16, sampleRate);
                     
                     const audioUrl = URL.createObjectURL(wavBlob);
+                    
+                    // 生成した音声をキャッシュに保存
+                    audioCache.set(cacheKey, audioUrl);
+                    
                     currentAudio = new Audio(audioUrl);
                     currentAudio.play();
                 } else {
