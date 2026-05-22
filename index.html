@@ -204,12 +204,26 @@
                     </div>
                 </div>
                 
-                <!-- 速度調整スライダー追加 -->
-                <div class="flex items-center justify-between sm:justify-end gap-2 text-sm mt-3 pt-3 border-t border-slate-700/30">
-                    <span class="text-slate-400 text-xs"><i class="fa-solid fa-gauge-high text-xs mr-1"></i>再生速度:</span>
-                    <div class="flex-1 sm:flex-none sm:w-[200px] flex items-center gap-3">
-                        <input type="range" id="speedSlider" min="0.5" max="1.0" step="0.1" value="1.0" class="w-full accent-blue-500 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
-                        <span id="speedValue" class="text-xs text-slate-300 font-mono w-8 text-right">1.0x</span>
+                <!-- 速度・連続再生調整 (UIを横並びに改修) -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-3 pt-4 border-t border-slate-700/30">
+                    <!-- 速度 -->
+                    <div class="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+                        <span class="text-slate-400 text-xs whitespace-nowrap"><i class="fa-solid fa-gauge-high text-xs mr-1"></i>再生速度:</span>
+                        <div class="flex-1 sm:flex-none sm:w-[150px] flex items-center gap-3">
+                            <input type="range" id="speedSlider" min="0.5" max="1.0" step="0.1" value="1.0" class="w-full accent-blue-500 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                            <span id="speedValue" class="text-xs text-slate-300 font-mono w-8 text-right">1.0x</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 連続再生トグル -->
+                    <div class="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto sm:border-l sm:border-slate-700/50 sm:pl-4">
+                        <span class="text-slate-400 text-xs whitespace-nowrap" title="ONにすると直前の音声を繰り返し再生します"><i class="fa-solid fa-repeat text-xs mr-1"></i>連続再生:</span>
+                        <div class="flex items-center gap-2">
+                            <button id="loopToggleBtn" class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-700 transition-colors focus:outline-none cursor-pointer">
+                                <span id="loopToggleKnob" class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1 shadow-sm"></span>
+                            </button>
+                            <span id="loopStatusText" class="text-xs text-slate-500 font-medium w-8 text-left">OFF</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -318,7 +332,8 @@
             accent: localStorage.getItem('nativeSense_accent') || 'US', // 'US' | 'UK'
             browserVoiceUri: localStorage.getItem('nativeSense_bVoice') || '',
             aiVoiceName: localStorage.getItem('nativeSense_aiVoice') || 'Zephyr',
-            speed: parseFloat(localStorage.getItem('nativeSense_speed')) || 1.0 // 速度状態の追加
+            speed: parseFloat(localStorage.getItem('nativeSense_speed')) || 1.0,
+            isLooping: false // 連続再生フラグ
         };
 
         const AI_VOICES = [
@@ -336,6 +351,10 @@
         const audioCache = new Map(); // 生成した音声を保存するキャッシュ
         const wordDictionaryCache = new Map(); // 単語の翻訳を保存するキャッシュ
         let tooltipTimeout = null;
+        
+        // 連続再生用変数
+        let loopTimeout = null; 
+        let currentPlayingText = ''; 
 
         // --- DOM Elements ---
         const els = {
@@ -374,6 +393,11 @@
             
             speedSlider: document.getElementById('speedSlider'),
             speedValue: document.getElementById('speedValue'),
+            
+            // 連続再生トグル
+            loopToggleBtn: document.getElementById('loopToggleBtn'),
+            loopToggleKnob: document.getElementById('loopToggleKnob'),
+            loopStatusText: document.getElementById('loopStatusText'),
         };
 
         // --- UI / Toast System ---
@@ -404,6 +428,20 @@
                 btn.disabled = false;
                 btn.innerHTML = `<span>${originalText}</span> <i class="${iconClass}"></i>`;
             }
+        }
+
+        // --- Audio Control Helper ---
+        function stopAudio() {
+            if (loopTimeout) {
+                clearTimeout(loopTimeout);
+                loopTimeout = null;
+            }
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            window.speechSynthesis.cancel();
+            currentPlayingText = '';
         }
 
         // --- Initialization ---
@@ -442,6 +480,7 @@
                 els.contextInput.value = '';
                 els.charCount.textContent = '0 / 200';
                 els.inputText.focus();
+                stopAudio(); // クリア時に音声を強制停止
             });
 
             // Toggle Context
@@ -512,6 +551,30 @@
                 }
             });
 
+            // Loop Toggle Change
+            els.loopToggleBtn.addEventListener('click', () => {
+                state.isLooping = !state.isLooping;
+                
+                if (state.isLooping) {
+                    els.loopToggleBtn.classList.replace('bg-slate-700', 'bg-blue-500');
+                    els.loopToggleKnob.classList.replace('translate-x-1', 'translate-x-6');
+                    els.loopStatusText.textContent = 'ON';
+                    els.loopStatusText.classList.replace('text-slate-500', 'text-blue-400');
+                    showToast('連続再生をONにしました', 'info');
+                } else {
+                    els.loopToggleBtn.classList.replace('bg-blue-500', 'bg-slate-700');
+                    els.loopToggleKnob.classList.replace('translate-x-6', 'translate-x-1');
+                    els.loopStatusText.textContent = 'OFF';
+                    els.loopStatusText.classList.replace('text-blue-400', 'text-slate-500');
+                    
+                    // OFFにした瞬間に待機中のループがあればキャンセル
+                    if (loopTimeout) {
+                        clearTimeout(loopTimeout);
+                        loopTimeout = null;
+                    }
+                }
+            });
+
             // Action
             els.analyzeBtn.addEventListener('click', handleAnalyze);
 
@@ -529,6 +592,7 @@
                 state.history = [];
                 localStorage.removeItem('nativeSense_history');
                 renderHistory();
+                stopAudio(); // 履歴クリア時も音声を停止
                 showToast('履歴をクリアしました');
             });
 
@@ -582,6 +646,7 @@
             if (isRecording) {
                 speechRecognition.stop();
             } else {
+                stopAudio(); // マイク入力開始時にループ音声を停止
                 try {
                     speechRecognition.start();
                     isRecording = true;
@@ -706,12 +771,11 @@
         }
 
         async function playTTS(text) {
-            // Stop any currently playing audio
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            window.speechSynthesis.cancel();
+            // 他の再生やループ待機をリセット
+            stopAudio();
+            
+            // 現在再生の対象テキストを記憶（ループ判定用）
+            currentPlayingText = text;
 
             if (state.ttsEngine === 'browser') {
                 playBrowserTTS(text);
@@ -728,6 +792,16 @@
             if (voice) utterance.voice = voice;
             utterance.rate = state.speed; // スピード設定を反映
             
+            // 再生終了時の処理（ループ判定）
+            utterance.onend = () => {
+                if (state.isLooping && currentPlayingText === text) {
+                    // 1.5秒のインターバルをあけて再ループ
+                    loopTimeout = setTimeout(() => {
+                        if (state.isLooping) playBrowserTTS(text);
+                    }, 1500);
+                }
+            };
+
             window.speechSynthesis.speak(utterance);
         }
 
@@ -791,6 +865,19 @@
             if (audioCache.has(cacheKey)) {
                 currentAudio = new Audio(audioCache.get(cacheKey));
                 currentAudio.playbackRate = state.speed; // スピード設定を反映
+                
+                // 再生終了時の処理（ループ判定）
+                currentAudio.onended = () => {
+                    if (state.isLooping && currentPlayingText === text) {
+                        loopTimeout = setTimeout(() => {
+                            if (state.isLooping && currentAudio) {
+                                currentAudio.currentTime = 0;
+                                currentAudio.play();
+                            }
+                        }, 1500); // 1.5秒のインターバル
+                    }
+                };
+
                 currentAudio.play();
                 return;
             }
@@ -843,6 +930,19 @@
                     
                     currentAudio = new Audio(audioUrl);
                     currentAudio.playbackRate = state.speed; // スピード設定を反映
+                    
+                    // 再生終了時の処理（ループ判定）
+                    currentAudio.onended = () => {
+                        if (state.isLooping && currentPlayingText === text) {
+                            loopTimeout = setTimeout(() => {
+                                if (state.isLooping && currentAudio) {
+                                    currentAudio.currentTime = 0;
+                                    currentAudio.play();
+                                }
+                            }, 1500); // 1.5秒のインターバル
+                        }
+                    };
+
                     currentAudio.play();
                 } else {
                     throw new Error('Invalid audio data format');
@@ -862,6 +962,7 @@
                 return;
             }
 
+            stopAudio(); // 変換開始時に現在の音声をストップ
             setButtonLoading(els.analyzeBtn, true, 'AIでネイティブ英語に変換', 'fa-solid fa-wand-magic-sparkles');
             
             try {
