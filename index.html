@@ -40,52 +40,34 @@
             background-color: #0f172a; /* Slate 900 */
             color: #f8fafc; /* Slate 50 */
             -webkit-tap-highlight-color: transparent;
-            overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile if possible */
+            overscroll-behavior-y: none;
         }
         
-        /* Custom Scrollbar for sleek look */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.5);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(71, 85, 105, 0.8);
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(100, 116, 139, 1);
-        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 1); }
 
-        /* Safe area paddings for iOS Notch */
         .safe-pb { padding-bottom: env(safe-area-inset-bottom, 20px); }
         .safe-pt { padding-top: env(safe-area-inset-top, 0px); }
 
-        /* Animations */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fade-in {
-            animation: fadeIn 0.4s ease-out forwards;
-        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
         
         @keyframes pulse-ring {
             0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
             70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
             100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
         }
-        .recording-pulse {
-            animation: pulse-ring 2s infinite;
-            background-color: #ef4444 !important; /* Red */
-        }
+        .animate-pulse-ring { animation: pulse-ring 2s infinite; }
 
-        /* Loading Spinner */
         .loader {
             border: 3px solid rgba(255,255,255,0.1);
-            border-left-color: #3b82f6; /* Blue 500 */
+            border-left-color: #3b82f6;
             border-radius: 50%;
             width: 24px;
             height: 24px;
@@ -93,7 +75,6 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Toast Container */
         #toast-container {
             position: fixed;
             top: 20px;
@@ -106,7 +87,7 @@
             pointer-events: none;
         }
         .toast {
-            background: rgba(30, 41, 59, 0.95); /* Slate 800 */
+            background: rgba(30, 41, 59, 0.95);
             border: 1px solid #334155;
             color: white;
             padding: 12px 24px;
@@ -121,31 +102,37 @@
 </head>
 <body class="safe-pt text-slate-100 flex flex-col h-screen overflow-hidden">
 
-    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 flex-shrink-0 z-10 sticky top-0">
+    <!-- Header -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 flex-shrink-0 z-10 sticky top-0">
         <div class="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2">
+            <div id="logoBtn" class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
                 <div class="bg-blue-600 p-2 rounded-lg text-white shadow-lg shadow-blue-500/20">
                     <i class="fa-solid fa-language text-xl"></i>
                 </div>
                 <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">NativeSense</h1>
             </div>
             
-            <button id="apiKeyBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-yellow-500/50 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20">
-                <i class="fa-solid fa-key"></i>
-                <span id="apiKeyStatusText">デモモード</span>
-            </button>
+            <div class="flex items-center gap-2">
+                <button id="navStudyListBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-star"></i>
+                    <span class="hidden sm:inline">学習リスト</span>
+                </button>
+                <button id="apiKeyBtn" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-yellow-500/50 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20">
+                    <i class="fa-solid fa-key"></i>
+                    <span id="apiKeyStatusText">デモモード</span>
+                </button>
+            </div>
         </div>
     </header>
 
-    <!-- Toasts -->
     <div id="toast-container"></div>
 
-    <!-- 翻訳ツールチップ -->
     <div id="wordTooltip" class="fixed hidden bg-slate-800/95 border border-blue-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-50 text-sm backdrop-blur-md pointer-events-none transform transition-all duration-200">
         <!-- JSでコンテンツを挿入 -->
     </div>
 
-    <main class="flex-1 overflow-y-auto max-w-3xl w-full mx-auto p-4 safe-pb relative space-y-6">
+    <!-- ===== Main View (翻訳・履歴) ===== -->
+    <main id="mainView" class="flex-1 overflow-y-auto max-w-3xl w-full mx-auto p-4 safe-pb relative space-y-6">
         
         <!-- Input Section -->
         <section class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 shadow-sm relative backdrop-blur-sm">
@@ -164,7 +151,7 @@
                 </div>
             </div>
 
-            <!-- シチュエーション追加用アコーディオン -->
+            <!-- シチュエーション -->
             <div class="mt-3">
                 <button id="toggleContextBtn" class="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors">
                     <i id="toggleContextIcon" class="fa-solid fa-chevron-down text-[10px] w-3"></i>
@@ -204,9 +191,8 @@
                     </div>
                 </div>
                 
-                <!-- 速度・連続再生調整 (UIを横並びに改修) -->
+                <!-- 速度・連続再生調整 -->
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-3 pt-4 border-t border-slate-700/30">
-                    <!-- 速度 -->
                     <div class="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
                         <span class="text-slate-400 text-xs whitespace-nowrap"><i class="fa-solid fa-gauge-high text-xs mr-1"></i>再生速度:</span>
                         <div class="flex-1 sm:flex-none sm:w-[150px] flex items-center gap-3">
@@ -215,9 +201,8 @@
                         </div>
                     </div>
                     
-                    <!-- 連続再生トグル -->
                     <div class="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto sm:border-l sm:border-slate-700/50 sm:pl-4">
-                        <span class="text-slate-400 text-xs whitespace-nowrap" title="ONにすると直前の音声を繰り返し再生します"><i class="fa-solid fa-repeat text-xs mr-1"></i>連続再生:</span>
+                        <span class="text-slate-400 text-xs whitespace-nowrap" title="ONにすると直前の音声を繰り返し再生します"><i class="fa-solid fa-repeat text-xs mr-1"></i>単一リピート:</span>
                         <div class="flex items-center gap-2">
                             <button id="loopToggleBtn" class="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-700 transition-colors focus:outline-none cursor-pointer">
                                 <span id="loopToggleKnob" class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-1 shadow-sm"></span>
@@ -228,7 +213,6 @@
                 </div>
             </div>
 
-            <!-- 大きく配置した音声入力ボタン -->
             <button id="micBtn" class="w-full mt-4 bg-slate-800 border border-slate-700 hover:border-slate-600 text-blue-400 py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm">
                 <i class="fa-solid fa-microphone text-lg flex-shrink-0"></i>
                 <span class="font-medium text-sm">音声でテキストを入力</span>
@@ -240,6 +224,7 @@
             </button>
         </section>
 
+        <!-- Result Section -->
         <section id="resultSection" class="hidden space-y-4 animate-fade-in">
             <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider ml-1">Result</h2>
             
@@ -248,7 +233,12 @@
                 <div class="absolute -top-3 left-4 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-0.5 rounded-full text-xs font-bold flex items-center gap-1.5">
                     <i class="fa-solid fa-mug-hot"></i> Casual / Daily
                 </div>
-                <div class="mt-2 flex justify-between items-start gap-4">
+                <!-- ★ 学習リストへ追加ボタン -->
+                <button id="saveToListBtn" class="absolute top-3 right-4 text-slate-400 hover:text-yellow-400 transition-colors hidden" title="学習リストに保存">
+                    <i id="saveToListIcon" class="fa-regular fa-star text-xl"></i>
+                </button>
+                
+                <div class="mt-4 flex justify-between items-start gap-4">
                     <p id="casualText" class="text-lg sm:text-xl font-medium leading-relaxed font-sans text-white flex-1"></p>
                     <button class="play-btn flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-colors" data-target="casualText">
                         <i class="fa-solid fa-play"></i>
@@ -278,22 +268,49 @@
             </div>
         </section>
 
-        <section id="historySection" class="pt-6 pb-12">
+        <!-- History Section -->
+        <section id="historySection" class="pt-6 pb-12 border-t border-slate-800 mt-6">
             <div class="flex justify-between items-center mb-4 px-1">
-                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-clock-rotate-left"></i> 学習履歴
-                </h2>
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-clock-rotate-left"></i> 最近の履歴
+                    </h2>
+                    <button id="playAllHistoryBtn" class="hidden text-xs bg-slate-700 text-slate-300 hover:bg-blue-500 hover:text-white px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium shadow-sm">
+                        <i class="fa-solid fa-play"></i> 全件再生
+                    </button>
+                </div>
                 <button id="clearHistoryBtn" class="text-xs text-red-400 hover:text-red-300 transition-colors hidden">
-                    <i class="fa-solid fa-trash-can mr-1"></i>履歴をクリア
+                    <i class="fa-solid fa-trash-can mr-1"></i>クリア
                 </button>
             </div>
-            
-            <div id="historyList" class="space-y-3">
-                <p class="text-slate-500 text-sm text-center py-4 bg-slate-800/30 rounded-xl border border-dashed border-slate-700">履歴はまだありません</p>
-            </div>
+            <div id="historyList" class="space-y-3"></div>
         </section>
     </main>
 
+    <!-- ===== Study List View (学習リスト) ===== -->
+    <main id="listView" class="hidden flex-1 overflow-y-auto max-w-3xl w-full mx-auto p-4 safe-pb relative space-y-4 animate-fade-in">
+        <div class="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 border border-blue-500/30 rounded-2xl p-6 mb-6 relative overflow-hidden">
+            <div class="absolute -right-4 -top-4 opacity-10">
+                <i class="fa-solid fa-star text-9xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2 relative z-10 flex items-center gap-2">
+                <i class="fa-solid fa-star text-yellow-400"></i> 学習リスト (単語帳)
+            </h2>
+            <p class="text-sm text-blue-200 relative z-10">登録したフレーズは端末のデータベースに保存され、通信なしでネイティブ音声を再生できます。</p>
+            
+            <div class="mt-4 flex gap-3 relative z-10">
+                <button id="playAllListBtn" class="hidden flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 font-medium">
+                    <i class="fa-solid fa-play"></i> リスト全件再生
+                </button>
+            </div>
+        </div>
+
+        <div id="studyListContainer" class="space-y-4 pb-12">
+            <!-- Populated by JS -->
+        </div>
+    </main>
+
+    <!-- API Key Modal -->
     <div id="apiKeyModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-fade-in relative">
             <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white">
@@ -303,16 +320,15 @@
                 <i class="fa-solid fa-key text-yellow-500"></i> APIキー設定
             </h3>
             <p class="text-xs text-slate-400 mb-4 leading-relaxed">
-                Gemini APIキーを登録するとフル機能が利用できます。キーは端末（ブラウザ）内にのみ安全に保存されます。<br>
-                ※未登録の場合はダミーデータを返す「デモモード」で動作します。
+                Gemini APIキーを登録するとフル機能が利用できます。キーは端末内に安全に保存されます。<br>
             </p>
             <div class="space-y-4">
                 <div>
-                    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
                 </div>
                 <div class="flex gap-2">
                     <button id="removeKeyBtn" class="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-800 transition-colors">削除</button>
-                    <button id="saveKeyBtn" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors shadow-lg shadow-blue-900/30">保存</button>
+                    <button id="saveKeyBtn" class="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors shadow-lg">保存</button>
                 </div>
             </div>
             <div class="mt-4 pt-4 border-t border-slate-800 text-center">
@@ -324,16 +340,71 @@
     </div>
 
     <script>
-        // --- State Variables ---
+        // ==========================================
+        // 1. IndexedDB Setup (音声の完全保存用)
+        // ==========================================
+        const DB_NAME = 'NativeSenseDB';
+        const STORE_NAME = 'audioStore';
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME);
+                    }
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function saveAudioToDB(key, blob) {
+            try {
+                const db = await initDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(STORE_NAME);
+                    store.put(blob, key);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = (e) => reject(e.target.error);
+                });
+            } catch(e) { console.error("DB Write Error:", e); }
+        }
+
+        async function getAudioFromDB(key) {
+            try {
+                const db = await initDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.get(key);
+                    req.onsuccess = () => resolve(req.result); // undefined if not found
+                    req.onerror = (e) => reject(e.target.error);
+                });
+            } catch(e) { 
+                console.error("DB Read Error:", e); 
+                return null; 
+            }
+        }
+
+        // ==========================================
+        // 2. State & Variables
+        // ==========================================
         let state = {
             apiKey: localStorage.getItem('nativeSense_apiKey') || '',
             history: JSON.parse(localStorage.getItem('nativeSense_history') || '[]'),
+            studyList: JSON.parse(localStorage.getItem('nativeSense_studyList') || '[]'),
+            
             ttsEngine: 'browser', // 'browser' | 'ai'
-            accent: localStorage.getItem('nativeSense_accent') || 'US', // 'US' | 'UK'
+            accent: localStorage.getItem('nativeSense_accent') || 'US',
             browserVoiceUri: localStorage.getItem('nativeSense_bVoice') || '',
             aiVoiceName: localStorage.getItem('nativeSense_aiVoice') || 'Zephyr',
             speed: parseFloat(localStorage.getItem('nativeSense_speed')) || 1.0,
-            isLooping: false // 連続再生フラグ
+            
+            isLooping: false,
+            currentResult: null // 最後に変換した結果（リスト登録用）
         };
 
         const AI_VOICES = [
@@ -347,17 +418,29 @@
         let browserVoices = [];
         let isRecording = false;
         let speechRecognition = null;
-        let currentAudio = null; // For AI TTS Audio playback
-        const audioCache = new Map(); // 生成した音声を保存するキャッシュ
-        const wordDictionaryCache = new Map(); // 単語の翻訳を保存するキャッシュ
-        let tooltipTimeout = null;
         
-        // 連続再生用変数
-        let loopTimeout = null; 
-        let currentPlayingText = ''; 
+        // 再生管理
+        let playbackState = {
+            audioObj: null,
+            isPlayingQueue: false,
+            queueType: null, // 'history' | 'list'
+            queue: [],
+            currentText: ''
+        };
+        const audioCache = new Map(); // メモリキャッシュ
+        const wordDictionaryCache = new Map();
+        let tooltipTimeout = null;
+        let loopTimeout = null;
 
-        // --- DOM Elements ---
+        // ==========================================
+        // 3. DOM Elements
+        // ==========================================
         const els = {
+            logoBtn: document.getElementById('logoBtn'),
+            navStudyListBtn: document.getElementById('navStudyListBtn'),
+            mainView: document.getElementById('mainView'),
+            listView: document.getElementById('listView'),
+            
             inputText: document.getElementById('inputText'),
             charCount: document.getElementById('charCount'),
             clearBtn: document.getElementById('clearBtn'),
@@ -366,21 +449,32 @@
             toggleContextIcon: document.getElementById('toggleContextIcon'),
             contextArea: document.getElementById('contextArea'),
             contextInput: document.getElementById('contextInput'),
+            
             engineBrowser: document.getElementById('engineBrowser'),
             engineAI: document.getElementById('engineAI'),
             accentUS: document.getElementById('accentUS'),
             accentUK: document.getElementById('accentUK'),
             voiceSelect: document.getElementById('voiceSelect'),
+            speedSlider: document.getElementById('speedSlider'),
+            speedValue: document.getElementById('speedValue'),
+            loopToggleBtn: document.getElementById('loopToggleBtn'),
+            loopToggleKnob: document.getElementById('loopToggleKnob'),
+            loopStatusText: document.getElementById('loopStatusText'),
             analyzeBtn: document.getElementById('analyzeBtn'),
             
             resultSection: document.getElementById('resultSection'),
             casualText: document.getElementById('casualText'),
             businessText: document.getElementById('businessText'),
             adviceText: document.getElementById('adviceText'),
+            saveToListBtn: document.getElementById('saveToListBtn'),
+            saveToListIcon: document.getElementById('saveToListIcon'),
             
-            historySection: document.getElementById('historySection'),
             historyList: document.getElementById('historyList'),
             clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+            playAllHistoryBtn: document.getElementById('playAllHistoryBtn'),
+            
+            studyListContainer: document.getElementById('studyListContainer'),
+            playAllListBtn: document.getElementById('playAllListBtn'),
             
             apiKeyBtn: document.getElementById('apiKeyBtn'),
             apiKeyStatusText: document.getElementById('apiKeyStatusText'),
@@ -389,18 +483,25 @@
             apiKeyInput: document.getElementById('apiKeyInput'),
             saveKeyBtn: document.getElementById('saveKeyBtn'),
             removeKeyBtn: document.getElementById('removeKeyBtn'),
-            wordTooltip: document.getElementById('wordTooltip'),
-            
-            speedSlider: document.getElementById('speedSlider'),
-            speedValue: document.getElementById('speedValue'),
-            
-            // 連続再生トグル
-            loopToggleBtn: document.getElementById('loopToggleBtn'),
-            loopToggleKnob: document.getElementById('loopToggleKnob'),
-            loopStatusText: document.getElementById('loopStatusText'),
+            wordTooltip: document.getElementById('wordTooltip')
         };
 
-        // --- UI / Toast System ---
+        // ==========================================
+        // 4. Initialization & UI Setup
+        // ==========================================
+        function init() {
+            updateApiKeyUI();
+            renderHistory();
+            renderStudyList();
+            initSpeechRecognition();
+            initTTS();
+            
+            els.speedSlider.value = state.speed;
+            els.speedValue.textContent = state.speed.toFixed(1) + 'x';
+            
+            setupEventListeners();
+        }
+
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -420,6 +521,7 @@
             }, 3000);
         }
 
+        // --- 追加：ボタンのローディング状態を切り替える関数 ---
         function setButtonLoading(btn, isLoading, originalText, iconClass) {
             if (isLoading) {
                 btn.disabled = true;
@@ -430,60 +532,43 @@
             }
         }
 
-        // --- Audio Control Helper ---
-        function stopAudio() {
-            if (loopTimeout) {
-                clearTimeout(loopTimeout);
-                loopTimeout = null;
-            }
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-            window.speechSynthesis.cancel();
-            currentPlayingText = '';
-        }
-
-        // --- Initialization ---
-        function init() {
-            updateApiKeyUI();
-            renderHistory();
-            initSpeechRecognition();
-            initTTS();
-            
-            // スピードUIの初期化
-            els.speedSlider.value = state.speed;
-            els.speedValue.textContent = state.speed.toFixed(1) + 'x';
-            
-            setupEventListeners();
-        }
-
-        // --- API Key Management ---
-        function updateApiKeyUI() {
-            if (state.apiKey) {
-                els.apiKeyBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20";
-                els.apiKeyStatusText.textContent = "APIキー有効";
+        // View Switcher (Main <-> List)
+        function switchView(viewName) {
+            stopQueue(); // 画面切り替え時は音声を止める
+            if (viewName === 'list') {
+                els.mainView.classList.add('hidden');
+                els.listView.classList.remove('hidden');
+                
+                els.navStudyListBtn.classList.replace('text-slate-400', 'text-blue-400');
+                els.navStudyListBtn.classList.add('bg-blue-500/10', 'border', 'border-blue-500/50');
+                renderStudyList();
             } else {
-                els.apiKeyBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-yellow-500/50 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20";
-                els.apiKeyStatusText.textContent = "デモモード";
+                els.listView.classList.add('hidden');
+                els.mainView.classList.remove('hidden');
+                
+                els.navStudyListBtn.classList.replace('text-blue-400', 'text-slate-400');
+                els.navStudyListBtn.classList.remove('bg-blue-500/10', 'border', 'border-blue-500/50');
             }
         }
 
         function setupEventListeners() {
-            // Text Input
-            els.inputText.addEventListener('input', () => {
-                els.charCount.textContent = `${els.inputText.value.length} / 200`;
+            // View Navigation
+            els.logoBtn.addEventListener('click', () => switchView('main'));
+            els.navStudyListBtn.addEventListener('click', () => {
+                if (els.listView.classList.contains('hidden')) switchView('list');
+                else switchView('main');
             });
 
+            // Input
+            els.inputText.addEventListener('input', () => els.charCount.textContent = `${els.inputText.value.length} / 200`);
             els.clearBtn.addEventListener('click', () => {
                 els.inputText.value = '';
                 els.contextInput.value = '';
                 els.charCount.textContent = '0 / 200';
                 els.inputText.focus();
-                stopAudio(); // クリア時に音声を強制停止
+                stopQueue(); 
             });
 
-            // Toggle Context
             els.toggleContextBtn.addEventListener('click', () => {
                 els.contextArea.classList.toggle('hidden');
                 if (els.contextArea.classList.contains('hidden')) {
@@ -494,40 +579,34 @@
                 }
             });
 
-            // Modal
+            // API Modal
             els.apiKeyBtn.addEventListener('click', () => {
                 els.apiKeyInput.value = state.apiKey;
                 els.apiKeyModal.classList.remove('hidden');
             });
             els.closeModalBtn.addEventListener('click', () => els.apiKeyModal.classList.add('hidden'));
-            
             els.saveKeyBtn.addEventListener('click', () => {
-                const key = els.apiKeyInput.value.trim();
-                state.apiKey = key;
-                localStorage.setItem('nativeSense_apiKey', key);
+                state.apiKey = els.apiKeyInput.value.trim();
+                localStorage.setItem('nativeSense_apiKey', state.apiKey);
                 updateApiKeyUI();
                 els.apiKeyModal.classList.add('hidden');
                 showToast('APIキーを保存しました', 'success');
             });
-
             els.removeKeyBtn.addEventListener('click', () => {
                 state.apiKey = '';
                 localStorage.removeItem('nativeSense_apiKey');
                 updateApiKeyUI();
                 els.apiKeyInput.value = '';
                 els.apiKeyModal.classList.add('hidden');
-                showToast('APIキーを削除し、デモモードに移行しました', 'info');
+                showToast('APIキーを削除しました', 'info');
             });
 
-            // Engine Toggle
+            // Settings
             els.engineBrowser.addEventListener('click', () => switchTTSEngine('browser'));
             els.engineAI.addEventListener('click', () => switchTTSEngine('ai'));
-            
-            // Accent Toggle
             els.accentUS.addEventListener('click', () => switchAccent('US'));
             els.accentUK.addEventListener('click', () => switchAccent('UK'));
             
-            // Voice Select Change
             els.voiceSelect.addEventListener('change', (e) => {
                 if (state.ttsEngine === 'browser') {
                     state.browserVoiceUri = e.target.value;
@@ -538,37 +617,27 @@
                 }
             });
 
-            // Speed Slider Change
             els.speedSlider.addEventListener('input', (e) => {
-                const val = parseFloat(e.target.value);
-                state.speed = val;
-                els.speedValue.textContent = val.toFixed(1) + 'x';
-                localStorage.setItem('nativeSense_speed', val);
-                
-                // 再生中の音声があれば即座に速度を反映（AI音声の場合）
-                if (currentAudio) {
-                    currentAudio.playbackRate = val;
-                }
+                state.speed = parseFloat(e.target.value);
+                els.speedValue.textContent = state.speed.toFixed(1) + 'x';
+                localStorage.setItem('nativeSense_speed', state.speed);
+                if (playbackState.audioObj) playbackState.audioObj.playbackRate = state.speed;
             });
 
-            // Loop Toggle Change
             els.loopToggleBtn.addEventListener('click', () => {
                 state.isLooping = !state.isLooping;
-                
                 if (state.isLooping) {
                     els.loopToggleBtn.classList.replace('bg-slate-700', 'bg-blue-500');
                     els.loopToggleKnob.classList.replace('translate-x-1', 'translate-x-6');
                     els.loopStatusText.textContent = 'ON';
                     els.loopStatusText.classList.replace('text-slate-500', 'text-blue-400');
-                    showToast('連続再生をONにしました', 'info');
+                    showToast('単一フレーズの連続再生をONにしました', 'info');
                 } else {
                     els.loopToggleBtn.classList.replace('bg-blue-500', 'bg-slate-700');
                     els.loopToggleKnob.classList.replace('translate-x-6', 'translate-x-1');
                     els.loopStatusText.textContent = 'OFF';
                     els.loopStatusText.classList.replace('text-blue-400', 'text-slate-500');
-                    
-                    // OFFにした瞬間に待機中のループがあればキャンセル
-                    if (loopTimeout) {
+                    if (loopTimeout && !playbackState.isPlayingQueue) {
                         clearTimeout(loopTimeout);
                         loopTimeout = null;
                     }
@@ -578,7 +647,28 @@
             // Action
             els.analyzeBtn.addEventListener('click', handleAnalyze);
 
-            // Play Buttons
+            // Save to List Btn
+            els.saveToListBtn.addEventListener('click', handleSaveToList);
+
+            // Queue Play
+            els.playAllHistoryBtn.addEventListener('click', () => {
+                if (playbackState.isPlayingQueue && playbackState.queueType === 'history') stopQueue();
+                else startQueue('history');
+            });
+            els.playAllListBtn.addEventListener('click', () => {
+                if (playbackState.isPlayingQueue && playbackState.queueType === 'list') stopQueue();
+                else startQueue('list');
+            });
+
+            els.clearHistoryBtn.addEventListener('click', () => {
+                state.history = [];
+                localStorage.removeItem('nativeSense_history');
+                renderHistory();
+                if (playbackState.queueType === 'history') stopQueue();
+                showToast('履歴をクリアしました');
+            });
+
+            // Result Play buttons
             document.querySelectorAll('.play-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const targetId = e.currentTarget.getAttribute('data-target');
@@ -587,93 +677,32 @@
                 });
             });
 
-            // History Clear
-            els.clearHistoryBtn.addEventListener('click', () => {
-                state.history = [];
-                localStorage.removeItem('nativeSense_history');
-                renderHistory();
-                stopAudio(); // 履歴クリア時も音声を停止
-                showToast('履歴をクリアしました');
-            });
-
-            // Tooltip outside click to close
+            // Tooltip outside click
             document.addEventListener('click', (e) => {
-                if (!e.target.closest('#wordTooltip') && e.target.tagName !== 'SPAN') {
-                    els.wordTooltip.classList.add('hidden');
-                }
+                if (!e.target.closest('#wordTooltip') && e.target.tagName !== 'SPAN') els.wordTooltip.classList.add('hidden');
             });
-            
-            // Hide tooltip on scroll for better mobile UX
-            document.querySelector('main').addEventListener('scroll', () => {
-                els.wordTooltip.classList.add('hidden');
-            });
+            document.getElementById('mainView').addEventListener('scroll', () => els.wordTooltip.classList.add('hidden'));
+            document.getElementById('listView').addEventListener('scroll', () => els.wordTooltip.classList.add('hidden'));
         }
 
-        function initSpeechRecognition() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRecognition) {
-                speechRecognition = new SpeechRecognition();
-                speechRecognition.lang = 'ja-JP';
-                speechRecognition.interimResults = false;
-                speechRecognition.maxAlternatives = 1;
-
-                speechRecognition.onresult = (event) => {
-                    const transcript = event.results[0][0].transcript;
-                    const currentText = els.inputText.value;
-                    els.inputText.value = currentText + (currentText ? ' ' : '') + transcript;
-                    els.charCount.textContent = `${els.inputText.value.length} / 200`;
-                    stopRecording();
-                };
-
-                speechRecognition.onerror = (event) => {
-                    console.warn("Speech config error", event.error);
-                    stopRecording();
-                    showToast(`音声入力エラー: ${event.error}`, 'error');
-                };
-
-                speechRecognition.onend = () => {
-                    stopRecording();
-                };
-
-                els.micBtn.addEventListener('click', toggleRecording);
+        function updateApiKeyUI() {
+            if (state.apiKey) {
+                els.apiKeyBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-emerald-500/50 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20";
+                els.apiKeyStatusText.textContent = "APIキー有効";
             } else {
-                els.micBtn.style.display = 'none'; // Hide if not supported (some iOS webviews)
+                els.apiKeyBtn.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors border-yellow-500/50 text-yellow-400 bg-yellow-500/10 hover:bg-yellow-500/20";
+                els.apiKeyStatusText.textContent = "デモモード";
             }
         }
 
-        function toggleRecording() {
-            if (!speechRecognition) return;
-            if (isRecording) {
-                speechRecognition.stop();
-            } else {
-                stopAudio(); // マイク入力開始時にループ音声を停止
-                try {
-                    speechRecognition.start();
-                    isRecording = true;
-                    // ボタンを録音中のデザインに変更
-                    els.micBtn.classList.remove('bg-slate-800', 'text-blue-400', 'border-slate-700', 'hover:border-slate-600');
-                    els.micBtn.classList.add('bg-red-500', 'text-white', 'border-red-400', 'animate-pulse');
-                    els.micBtn.innerHTML = '<i class="fa-solid fa-stop text-lg flex-shrink-0"></i><span class="font-medium text-sm">音声入力中... (タップで停止)</span>';
-                    showToast('音声入力中...', 'info');
-                } catch (e) {
-                    showToast('マイクにアクセスできませんでした', 'error');
-                }
-            }
-        }
-
-        function stopRecording() {
-            isRecording = false;
-            // ボタンを元のデザインに戻す
-            els.micBtn.classList.remove('bg-red-500', 'text-white', 'border-red-400', 'animate-pulse');
-            els.micBtn.classList.add('bg-slate-800', 'text-blue-400', 'border-slate-700', 'hover:border-slate-600');
-            els.micBtn.innerHTML = '<i class="fa-solid fa-microphone text-lg flex-shrink-0"></i><span class="font-medium text-sm">音声でテキストを入力</span>';
-        }
-
+        // ==========================================
+        // 5. Audio Playback Control
+        // ==========================================
+        
         function initTTS() {
             switchTTSEngine(state.ttsEngine);
             switchAccent(state.accent);
             
-            // Standard TTS voices load asynchronously
             if ('speechSynthesis' in window) {
                 speechSynthesis.onvoiceschanged = () => {
                     if (state.ttsEngine === 'browser') populateBrowserVoices();
@@ -725,13 +754,12 @@
                 return;
             }
 
-            // Filter by accent
             if (state.accent === 'US') {
                 browserVoices = allEnglishVoices.filter(v => v.lang.includes('US'));
-                if (browserVoices.length === 0) browserVoices = allEnglishVoices; // fallback
+                if (browserVoices.length === 0) browserVoices = allEnglishVoices; 
             } else {
                 browserVoices = allEnglishVoices.filter(v => v.lang.includes('GB') || v.lang.includes('UK'));
-                if (browserVoices.length === 0) browserVoices = allEnglishVoices; // fallback
+                if (browserVoices.length === 0) browserVoices = allEnglishVoices; 
             }
 
             els.voiceSelect.innerHTML = '';
@@ -741,7 +769,6 @@
             browserVoices.forEach(voice => {
                 const option = document.createElement('option');
                 option.value = voice.voiceURI;
-                // Clean up name for UI
                 let name = voice.name.replace(/English|United States|United Kingdom/ig, '').trim();
                 let region = voice.lang.includes('GB') || voice.lang.includes('UK') ? 'UK' : 'US';
                 option.textContent = `${region} - ${name || voice.name}`;
@@ -770,122 +797,102 @@
             });
         }
 
-        async function playTTS(text) {
-            // 他の再生やループ待機をリセット
-            stopAudio();
-            
-            // 現在再生の対象テキストを記憶（ループ判定用）
-            currentPlayingText = text;
+        function stopAudio() {
+            if (loopTimeout) clearTimeout(loopTimeout);
+            if (playbackState.audioObj) playbackState.audioObj.pause();
+            window.speechSynthesis.cancel();
+            playbackState.audioObj = null;
+            playbackState.currentText = '';
+        }
 
-            if (state.ttsEngine === 'browser') {
-                playBrowserTTS(text);
-            } else {
-                await playAITTS(text);
+        function handlePlaybackEnd(text) {
+            // Queue Play (優先)
+            if (playbackState.isPlayingQueue && playbackState.currentText === text) {
+                loopTimeout = setTimeout(() => playNextInQueue(), 1500);
+            } 
+            // Loop Play
+            else if (state.isLooping && playbackState.currentText === text) {
+                loopTimeout = setTimeout(() => {
+                    if (state.isLooping) {
+                        if (playbackState.audioObj) {
+                            playbackState.audioObj.currentTime = 0;
+                            playbackState.audioObj.play();
+                        } else {
+                            playBrowserTTS(text);
+                        }
+                    }
+                }, 1500);
             }
         }
 
-        function playBrowserTTS(text) {
+        function playAudioURL(url, text) {
+            playbackState.audioObj = new Audio(url);
+            playbackState.audioObj.playbackRate = state.speed;
+            playbackState.currentText = text;
+            
+            playbackState.audioObj.onended = () => handlePlaybackEnd(text);
+            playbackState.audioObj.play();
+        }
+
+        async function playTTS(text, forceEngine = null, forceVoice = null, forceAccent = null) {
+            stopAudio();
+            playbackState.currentText = text;
+
+            const engine = forceEngine || state.ttsEngine;
+            
+            if (engine === 'browser') {
+                playBrowserTTS(text, forceVoice, forceAccent);
+            } else {
+                await playAITTS(text, forceVoice, forceAccent);
+            }
+        }
+
+        function playBrowserTTS(text, forceVoice, forceAccent) {
             if (!('speechSynthesis' in window)) return;
             const utterance = new SpeechSynthesisUtterance(text);
             
+            // 簡易的にエンジン設定だけ反映（厳密なVoice検索は省略し現在選択中のものを使う）
             const voice = browserVoices.find(v => v.voiceURI === state.browserVoiceUri) || browserVoices[0];
             if (voice) utterance.voice = voice;
-            utterance.rate = state.speed; // スピード設定を反映
+            utterance.rate = state.speed; 
             
-            // 再生終了時の処理（ループ判定）
-            utterance.onend = () => {
-                if (state.isLooping && currentPlayingText === text) {
-                    // 1.5秒のインターバルをあけて再ループ
-                    loopTimeout = setTimeout(() => {
-                        if (state.isLooping) playBrowserTTS(text);
-                    }, 1500);
-                }
-            };
-
+            utterance.onend = () => handlePlaybackEnd(text);
             window.speechSynthesis.speak(utterance);
         }
 
-        // PCM L16 to WAV conversion
-        function pcmToWav(pcmData, sampleRate) {
-            const numChannels = 1;
-            const bitsPerSample = 16;
-            const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
-            const blockAlign = numChannels * (bitsPerSample / 8);
-            const dataSize = pcmData.length * 2;
-            const buffer = new ArrayBuffer(44 + dataSize);
-            const view = new DataView(buffer);
-
-            // Helper
-            const writeString = (view, offset, string) => {
-                for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-            };
-
-            writeString(view, 0, 'RIFF');
-            view.setUint32(4, 36 + dataSize, true);
-            writeString(view, 8, 'WAVE');
-            writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true); // PCM
-            view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, byteRate, true);
-            view.setUint16(32, blockAlign, true);
-            view.setUint16(34, bitsPerSample, true);
-            writeString(view, 36, 'data');
-            view.setUint32(40, dataSize, true);
-
-            let offset = 44;
-            for (let i = 0; i < pcmData.length; i++, offset += 2) {
-                view.setInt16(offset, pcmData[i], true);
-            }
-            return new Blob([buffer], { type: 'audio/wav' });
-        }
-
-        function base64ToArrayBuffer(base64) {
-            const binary_string = window.atob(base64);
-            const len = binary_string.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-                bytes[i] = binary_string.charCodeAt(i);
-            }
-            return bytes.buffer;
-        }
-
-        async function playAITTS(text) {
+        async function playAITTS(text, forceVoice, forceAccent) {
             if (!state.apiKey) {
                 showToast('AI音声にはAPIキーが必要です。標準音声を使用します。', 'info');
                 playBrowserTTS(text);
                 return;
             }
 
-            // キャッシュキーの作成（話者、アクセント、テキストの組み合わせ）
-            const cacheKey = `${state.aiVoiceName}_${state.accent}_${text}`;
-            
-            // キャッシュが存在する場合はAPIを呼ばずに再生
-            if (audioCache.has(cacheKey)) {
-                currentAudio = new Audio(audioCache.get(cacheKey));
-                currentAudio.playbackRate = state.speed; // スピード設定を反映
-                
-                // 再生終了時の処理（ループ判定）
-                currentAudio.onended = () => {
-                    if (state.isLooping && currentPlayingText === text) {
-                        loopTimeout = setTimeout(() => {
-                            if (state.isLooping && currentAudio) {
-                                currentAudio.currentTime = 0;
-                                currentAudio.play();
-                            }
-                        }, 1500); // 1.5秒のインターバル
-                    }
-                };
+            const vName = forceVoice || state.aiVoiceName;
+            const acc = forceAccent || state.accent;
+            const cacheKey = `${vName}_${acc}_${text}`;
 
-                currentAudio.play();
+            // 1. Check Memory Cache
+            if (audioCache.has(cacheKey)) {
+                playAudioURL(audioCache.get(cacheKey), text);
                 return;
             }
 
-            showToast('AI音声を生成中...', 'info');
+            // 2. Check IndexedDB
             try {
-                // 発音の指示をプロンプトに追加
-                const promptText = state.accent === 'UK' 
+                const blob = await getAudioFromDB(cacheKey);
+                if (blob) {
+                    const url = URL.createObjectURL(blob);
+                    audioCache.set(cacheKey, url);
+                    playAudioURL(url, text);
+                    return;
+                }
+            } catch(e) { console.error(e); }
+
+            // 3. Generate via API
+            if (!playbackState.isPlayingQueue) showToast('AI音声を生成中...', 'info');
+            
+            try {
+                const promptText = acc === 'UK' 
                     ? `Speak in a clear British English accent: ${text}` 
                     : `Speak in a clear American English accent: ${text}`;
 
@@ -893,67 +900,242 @@
                     contents: [{ parts: [{ text: promptText }] }],
                     generationConfig: {
                         responseModalities: ["AUDIO"],
-                        speechConfig: {
-                            voiceConfig: { prebuiltVoiceConfig: { voiceName: state.aiVoiceName } }
-                        }
+                        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: vName } } }
                     },
                     model: "gemini-2.5-flash-preview-tts"
                 };
 
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${state.apiKey}`;
-                
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
-                if (!response.ok) throw new Error('API request failed');
-
+                if (!response.ok) throw new Error('API failed');
                 const result = await response.json();
                 const part = result?.candidates?.[0]?.content?.parts?.[0];
-                const audioData = part?.inlineData?.data;
-                const mimeType = part?.inlineData?.mimeType;
-
-                if (audioData && mimeType && mimeType.startsWith("audio/")) {
-                    const match = mimeType.match(/rate=(\d+)/);
+                
+                if (part?.inlineData?.data) {
+                    const match = part.inlineData.mimeType.match(/rate=(\d+)/);
                     const sampleRate = match ? parseInt(match[1], 10) : 24000;
-                    
-                    const pcmBuffer = base64ToArrayBuffer(audioData);
+                    const pcmBuffer = base64ToArrayBuffer(part.inlineData.data);
                     const pcm16 = new Int16Array(pcmBuffer);
                     const wavBlob = pcmToWav(pcm16, sampleRate);
                     
-                    const audioUrl = URL.createObjectURL(wavBlob);
-                    
-                    // 生成した音声をキャッシュに保存
-                    audioCache.set(cacheKey, audioUrl);
-                    
-                    currentAudio = new Audio(audioUrl);
-                    currentAudio.playbackRate = state.speed; // スピード設定を反映
-                    
-                    // 再生終了時の処理（ループ判定）
-                    currentAudio.onended = () => {
-                        if (state.isLooping && currentPlayingText === text) {
-                            loopTimeout = setTimeout(() => {
-                                if (state.isLooping && currentAudio) {
-                                    currentAudio.currentTime = 0;
-                                    currentAudio.play();
-                                }
-                            }, 1500); // 1.5秒のインターバル
-                        }
-                    };
+                    // Fire and forget save to DB
+                    saveAudioToDB(cacheKey, wavBlob);
 
-                    currentAudio.play();
+                    const audioUrl = URL.createObjectURL(wavBlob);
+                    audioCache.set(cacheKey, audioUrl);
+                    playAudioURL(audioUrl, text);
                 } else {
-                    throw new Error('Invalid audio data format');
+                    throw new Error('Invalid format');
                 }
             } catch (error) {
                 console.error(error);
-                showToast('AI音声の生成に失敗しました。標準音声を使用します。', 'error');
+                showToast('AI音声の生成に失敗しました。', 'error');
                 playBrowserTTS(text);
             }
         }
 
+        // ==========================================
+        // 6. Queue Playback (全件連続再生)
+        // ==========================================
+        function stopQueue() {
+            stopAudio();
+            playbackState.isPlayingQueue = false;
+            playbackState.queue = [];
+            playbackState.queueType = null;
+            updateQueueUI();
+            highlightItem(null);
+        }
+
+        function startQueue(type) { // 'history' | 'list'
+            stopAudio();
+            playbackState.queueType = type;
+            playbackState.isPlayingQueue = true;
+            
+            if (type === 'history') {
+                playbackState.queue = [...state.history];
+            } else {
+                playbackState.queue = [...state.studyList];
+            }
+            
+            if (playbackState.queue.length === 0) return stopQueue();
+            
+            updateQueueUI();
+            showToast(type === 'history' ? '履歴の全件再生を開始します' : '学習リストの全件再生を開始します', 'info');
+            playNextInQueue();
+        }
+
+        function playNextInQueue() {
+            if (!playbackState.isPlayingQueue || playbackState.queue.length === 0) {
+                stopQueue();
+                showToast('全件再生が終了しました', 'success');
+                return;
+            }
+            
+            const nextItem = playbackState.queue.shift();
+            highlightItem(nextItem.id, playbackState.queueType);
+            
+            // 学習リストの場合は、登録時のAI音声設定を優先して再生
+            if (playbackState.queueType === 'list') {
+                playTTS(nextItem.casual, 'ai', nextItem.voiceName, nextItem.accent);
+            } else {
+                playTTS(nextItem.casual);
+            }
+        }
+
+        function updateQueueUI() {
+            const hBtn = els.playAllHistoryBtn;
+            const lBtn = els.playAllListBtn;
+            
+            // Reset both
+            hBtn.innerHTML = `<i class="fa-solid fa-play"></i> 全件再生`;
+            hBtn.className = "text-xs bg-slate-700 text-slate-300 hover:bg-blue-500 hover:text-white px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium shadow-sm";
+            
+            lBtn.innerHTML = `<i class="fa-solid fa-play"></i> リスト全件再生`;
+            lBtn.className = "flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 font-medium";
+
+            if (playbackState.isPlayingQueue) {
+                if (playbackState.queueType === 'history') {
+                    hBtn.innerHTML = `<i class="fa-solid fa-stop"></i> 停止する`;
+                    hBtn.className = "text-xs bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium shadow-sm animate-pulse-ring";
+                } else {
+                    lBtn.innerHTML = `<i class="fa-solid fa-stop"></i> 停止する`;
+                    lBtn.className = "flex-1 sm:flex-none bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 font-medium animate-pulse-ring";
+                }
+            }
+        }
+
+        function highlightItem(id, type) {
+            const selector = type === 'history' ? '#historyList > div' : '#studyListContainer > div';
+            document.querySelectorAll(selector).forEach(el => {
+                if (el.getAttribute('data-id') == id) {
+                    el.classList.add('border-blue-500/50', 'bg-slate-800');
+                    el.classList.remove('border-slate-700/50', 'bg-slate-800/50');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    el.classList.remove('border-blue-500/50', 'bg-slate-800');
+                    el.classList.add('border-slate-700/50', 'bg-slate-800/50');
+                }
+            });
+        }
+
+
+        // ==========================================
+        // 7. Study List Management
+        // ==========================================
+        function updateSaveBtnState() {
+            if (!state.currentResult) {
+                els.saveToListBtn.classList.add('hidden');
+                return;
+            }
+            els.saveToListBtn.classList.remove('hidden');
+            
+            const exists = state.studyList.some(item => item.casual === state.currentResult.casual);
+            if (exists) {
+                els.saveToListIcon.className = "fa-solid fa-star text-yellow-400";
+                els.saveToListBtn.title = "学習リストから削除";
+            } else {
+                els.saveToListIcon.className = "fa-regular fa-star text-slate-400";
+                els.saveToListBtn.title = "学習リストに保存";
+            }
+        }
+
+        function handleSaveToList() {
+            if (!state.currentResult) return;
+            const existsIndex = state.studyList.findIndex(item => item.casual === state.currentResult.casual);
+            
+            if (existsIndex >= 0) {
+                state.studyList.splice(existsIndex, 1);
+                showToast('学習リストから削除しました');
+            } else {
+                const newItem = {
+                    id: Date.now(),
+                    original: state.currentResult.original,
+                    context: state.currentResult.context,
+                    casual: state.currentResult.casual,
+                    voiceName: state.currentResult.voiceName,
+                    accent: state.currentResult.accent,
+                    date: new Date().toLocaleDateString('ja-JP')
+                };
+                state.studyList.unshift(newItem);
+                showToast('学習リストに保存しました！', 'success');
+            }
+            
+            localStorage.setItem('nativeSense_studyList', JSON.stringify(state.studyList));
+            updateSaveBtnState();
+            renderStudyList();
+        }
+
+        function renderStudyList() {
+            if (state.studyList.length === 0) {
+                els.studyListContainer.innerHTML = `<div class="text-center py-10 bg-slate-800/30 rounded-2xl border border-dashed border-slate-700/50"><p class="text-slate-500 text-sm">登録されたフレーズはありません</p><p class="text-xs text-slate-600 mt-2">翻訳結果の ★ ボタンを押して追加できます</p></div>`;
+                els.playAllListBtn.classList.add('hidden');
+                return;
+            }
+
+            els.playAllListBtn.classList.remove('hidden');
+            els.studyListContainer.innerHTML = '';
+            
+            state.studyList.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl flex flex-col gap-3 relative transition-colors duration-300';
+                el.setAttribute('data-id', item.id);
+                
+                let contextHtml = item.context ? `<p class="text-[10px] text-amber-400/80 line-clamp-1 mb-1"><i class="fa-solid fa-quote-left mr-1"></i>${item.context}</p>` : '';
+
+                el.innerHTML = `
+                    <button class="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors list-delete-btn" data-id="${item.id}" title="リストから削除">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                    <div class="pr-8">
+                        ${contextHtml}
+                        <p class="text-xs text-slate-400 font-medium">${item.original}</p>
+                    </div>
+                    <div class="flex justify-between items-center bg-slate-900/80 p-3 rounded-lg border border-slate-700/50">
+                        <div class="list-english-text text-base font-semibold text-slate-100 pr-2 leading-relaxed flex-1"></div>
+                        <button class="list-play-btn flex-shrink-0 w-10 h-10 rounded-full bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-colors shadow-sm" data-text="${item.casual}" data-voice="${item.voiceName}" data-accent="${item.accent}">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                    </div>
+                    <div class="text-[10px] text-slate-500 flex justify-between items-center">
+                        <span class="flex items-center gap-1 bg-slate-900 px-2 py-0.5 rounded-md"><i class="fa-solid fa-robot text-blue-500/70"></i> ${item.voiceName} (${item.accent})</span>
+                        <span>${item.date}</span>
+                    </div>
+                `;
+                
+                const textContainer = el.querySelector('.list-english-text');
+                createClickableText(item.casual, textContainer);
+                els.studyListContainer.appendChild(el);
+            });
+
+            // Play & Delete events
+            document.querySelectorAll('.list-play-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const btnEl = e.currentTarget;
+                    playTTS(btnEl.dataset.text, 'ai', btnEl.dataset.voice, btnEl.dataset.accent);
+                });
+            });
+
+            document.querySelectorAll('.list-delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(e.currentTarget.dataset.id);
+                    state.studyList = state.studyList.filter(item => item.id !== id);
+                    localStorage.setItem('nativeSense_studyList', JSON.stringify(state.studyList));
+                    if (state.currentResult) updateSaveBtnState();
+                    renderStudyList();
+                    showToast('リストから削除しました');
+                });
+            });
+        }
+
+
+        // ==========================================
+        // 8. Analyze & Gemini API
+        // ==========================================
         async function handleAnalyze() {
             const text = els.inputText.value.trim();
             const contextText = els.contextInput.value.trim();
@@ -962,32 +1144,35 @@
                 return;
             }
 
-            stopAudio(); // 変換開始時に現在の音声をストップ
+            stopQueue();
             setButtonLoading(els.analyzeBtn, true, 'AIでネイティブ英語に変換', 'fa-solid fa-wand-magic-sparkles');
             
             try {
                 let resultObj;
-
                 if (!state.apiKey) {
-                    // DEMO MODE
-                    await new Promise(r => setTimeout(r, 1000)); // fake delay
+                    await new Promise(r => setTimeout(r, 1000)); 
                     resultObj = {
                         casual: "Can we change tomorrow's meeting to 10 AM?",
                         business: "Would it be possible to reschedule tomorrow's meeting to 10:00 AM?",
                         advice: "カジュアルでは Can we change... で十分伝わります。ビジネスシーンでは Would it be possible to... と丁寧にお伺いを立てる表現が好まれます。"
                     };
                 } else {
-                    // API Call
                     resultObj = await callGeminiTextAPI(text, contextText);
                 }
 
-                // Update UI
+                // Store current result for save feature
+                state.currentResult = {
+                    original: text,
+                    context: contextText,
+                    casual: resultObj.casual,
+                    voiceName: state.aiVoiceName,
+                    accent: state.accent
+                };
+
                 displayResult(resultObj);
-                
-                // Save History
+                updateSaveBtnState();
                 saveToHistory(text, contextText, resultObj);
                 
-                // Auto Play casual
                 setTimeout(() => playTTS(resultObj.casual), 300);
 
             } catch (error) {
@@ -1002,9 +1187,7 @@
             let systemPrompt = `You are an excellent English tutor. The user will provide a Japanese phrase or broken English. 
 Provide a "casual" natural native expression, a "business" polite expression, and a 1-2 sentence "advice" in Japanese explaining the nuances or word choices.`;
             
-            if (contextText) {
-                systemPrompt += `\n\nTranslation Context / Rules:\n${contextText}`;
-            }
+            if (contextText) systemPrompt += `\n\nTranslation Context / Rules:\n${contextText}`;
 
             const payload = {
                 contents: [{ parts: [{ text: inputText }] }],
@@ -1024,32 +1207,22 @@ Provide a "casual" natural native expression, a "business" polite expression, an
             };
 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${state.apiKey}`;
-            
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) throw new Error('Network response was not ok');
+            const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error('API failed');
             
             const result = await response.json();
             const textContent = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            
-            if (!textContent) throw new Error('No content returned');
+            if (!textContent) throw new Error('No content');
             
             return JSON.parse(textContent);
         }
 
         function displayResult(data) {
-            // 単語ごとにクリック可能な状態にしてセット
             createClickableText(data.casual, els.casualText);
             createClickableText(data.business, els.businessText);
-            
             els.adviceText.textContent = data.advice;
             
             els.resultSection.classList.remove('hidden');
-            // Re-trigger animation
             els.resultSection.classList.remove('animate-fade-in');
             void els.resultSection.offsetWidth; 
             els.resultSection.classList.add('animate-fade-in');
@@ -1067,9 +1240,7 @@ Provide a "casual" natural native expression, a "business" polite expression, an
             };
 
             state.history.unshift(newItem);
-            if (state.history.length > 15) {
-                state.history.pop(); // Keep max 15
-            }
+            if (state.history.length > 15) state.history.pop(); 
             
             localStorage.setItem('nativeSense_history', JSON.stringify(state.history));
             renderHistory();
@@ -1079,19 +1250,21 @@ Provide a "casual" natural native expression, a "business" polite expression, an
             if (state.history.length === 0) {
                 els.historyList.innerHTML = `<p class="text-slate-500 text-sm text-center py-4 bg-slate-800/30 rounded-xl border border-dashed border-slate-700">履歴はまだありません</p>`;
                 els.clearHistoryBtn.classList.add('hidden');
+                els.playAllHistoryBtn.classList.add('hidden');
                 return;
             }
 
             els.clearHistoryBtn.classList.remove('hidden');
+            els.playAllHistoryBtn.classList.remove('hidden');
             els.historyList.innerHTML = '';
             
             state.history.forEach(item => {
                 const el = document.createElement('div');
-                el.className = 'bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl flex flex-col gap-2 relative';
+                el.className = 'bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl flex flex-col gap-2 relative transition-colors duration-300';
+                el.setAttribute('data-id', item.id);
                 
                 let contextHtml = item.context ? `<p class="text-[10px] text-amber-400/80 line-clamp-1 mb-1"><i class="fa-solid fa-quote-left mr-1"></i>${item.context}</p>` : '';
 
-                // Original text & Date
                 el.innerHTML = `
                     <div class="flex justify-between items-start mb-1">
                         <div class="flex-1 pr-4">
@@ -1109,59 +1282,45 @@ Provide a "casual" natural native expression, a "business" polite expression, an
                     </div>
                 `;
                 
-                // 追加: 履歴のテキスト部分も単語ごとにクリック可能にして描画する
                 const textContainer = el.querySelector('.history-casual-text');
                 createClickableText(item.casual, textContainer);
-
                 els.historyList.appendChild(el);
             });
 
-            // Bind events for history play buttons
             document.querySelectorAll('.history-play-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const text = e.currentTarget.getAttribute('data-text');
-                    playTTS(text);
-                });
+                btn.addEventListener('click', (e) => playTTS(e.currentTarget.dataset.text));
             });
         }
 
-        // Start App
-        window.addEventListener('DOMContentLoaded', init);
-
-        // --- 単語翻訳機能 (Word Tooltip) ---
+        // ==========================================
+        // 9. Dictionary Tooltip & Helpers
+        // ==========================================
         function createClickableText(text, element) {
             element.innerHTML = '';
-            // アルファベット、数字、アポストロフィ、ハイフンを単語として認識し分割
             const parts = text.split(/([a-zA-Z0-9'-]+)/);
             
             parts.forEach(part => {
                 if (/^[a-zA-Z0-9'-]+$/.test(part)) {
                     const span = document.createElement('span');
                     span.textContent = part;
-                    // クリック可能であることを示す点線の下線スタイル
                     span.className = 'cursor-pointer transition-colors border-b border-slate-500/40 border-dashed hover:text-blue-300 hover:border-blue-400';
                     span.addEventListener('click', (e) => handleWordClick(e, part));
                     element.appendChild(span);
                 } else if (part) {
-                    // スペースや記号はそのままテキストノードとして追加
                     element.appendChild(document.createTextNode(part));
                 }
             });
         }
 
         async function handleWordClick(e, word) {
-            e.stopPropagation(); // 外側クリックで閉じる処理をキャンセル
-            
+            e.stopPropagation(); 
             const cleanWord = word.toLowerCase().replace(/[^a-z0-9'-]/g, '');
             if (!cleanWord) return;
 
             const tooltip = els.wordTooltip;
-            
-            // ローディング表示と位置調整
             tooltip.innerHTML = `<div class="flex items-center gap-2"><div class="loader" style="width:16px;height:16px;border-width:2px;"></div><span>検索中...</span></div>`;
             positionTooltip(tooltip, e.target);
 
-            // キャッシュ確認
             if (wordDictionaryCache.has(cleanWord)) {
                 showTooltipContent(word, wordDictionaryCache.get(cleanWord));
                 return;
@@ -1183,35 +1342,25 @@ Provide a "casual" natural native expression, a "business" polite expression, an
         }
 
         function showTooltipContent(originalWord, translatedText) {
-            const tooltip = els.wordTooltip;
-            tooltip.innerHTML = `
+            els.wordTooltip.innerHTML = `
                 <div class="flex flex-col items-center">
                     <span class="text-[10px] text-slate-400 font-mono tracking-wider mb-0.5">${originalWord.toLowerCase()}</span>
                     <span class="font-bold text-base text-white">${translatedText}</span>
                 </div>
             `;
-            
-            // 4秒後に自動で隠す
             clearTimeout(tooltipTimeout);
-            tooltipTimeout = setTimeout(() => {
-                tooltip.classList.add('hidden');
-            }, 4000);
+            tooltipTimeout = setTimeout(() => els.wordTooltip.classList.add('hidden'), 4000);
         }
 
         function positionTooltip(tooltip, targetElement) {
             tooltip.classList.remove('hidden');
             const rect = targetElement.getBoundingClientRect();
-            
-            // ツールチップのデフォルト位置（単語の上部）
             let top = rect.top - tooltip.offsetHeight - 12;
             let left = rect.left + (rect.width / 2) - (tooltip.offsetWidth / 2);
             
-            // 画面外にはみ出さないための処理
-            if (top < 10) top = rect.bottom + 12; // 上にはみ出る場合は下に表示
-            if (left < 10) left = 10; // 左端の保護
-            if (left + tooltip.offsetWidth > window.innerWidth - 10) {
-                left = window.innerWidth - tooltip.offsetWidth - 10; // 右端の保護
-            }
+            if (top < 10) top = rect.bottom + 12; 
+            if (left < 10) left = 10; 
+            if (left + tooltip.offsetWidth > window.innerWidth - 10) left = window.innerWidth - tooltip.offsetWidth - 10; 
             
             tooltip.style.top = `${top}px`;
             tooltip.style.left = `${left}px`;
@@ -1219,28 +1368,105 @@ Provide a "casual" natural native expression, a "business" polite expression, an
 
         async function translateWordAPI(word) {
             const systemPrompt = `あなたは優秀な英和辞典です。入力された英単語に対する最も一般的な「日本語の意味」を1つだけ、簡潔に回答してください。（最大10文字程度。発音記号や解説、不要な記号は一切含めないこと。）`;
-            
             const payload = {
                 contents: [{ parts: [{ text: word }] }],
                 systemInstruction: { parts: [{ text: systemPrompt }] },
-                generationConfig: {
-                    temperature: 0.1, // 揺らぎを少なくして辞書らしい出力を固定化
-                }
+                generationConfig: { temperature: 0.1 }
             };
 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${state.apiKey}`;
-            
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
+            const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error('API Error');
             const result = await response.json();
             return result.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "不明";
         }
 
+        // --- Mic Control ---
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition) {
+                speechRecognition = new SpeechRecognition();
+                speechRecognition.lang = 'ja-JP';
+                speechRecognition.interimResults = false;
+                speechRecognition.maxAlternatives = 1;
+
+                speechRecognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    const currentText = els.inputText.value;
+                    els.inputText.value = currentText + (currentText ? ' ' : '') + transcript;
+                    els.charCount.textContent = `${els.inputText.value.length} / 200`;
+                    stopRecording();
+                };
+
+                speechRecognition.onerror = (event) => {
+                    stopRecording();
+                    showToast(`音声入力エラー: ${event.error}`, 'error');
+                };
+
+                speechRecognition.onend = stopRecording;
+                els.micBtn.addEventListener('click', toggleRecording);
+            } else {
+                els.micBtn.style.display = 'none'; 
+            }
+        }
+
+        function toggleRecording() {
+            if (!speechRecognition) return;
+            if (isRecording) {
+                speechRecognition.stop();
+            } else {
+                stopQueue(); 
+                try {
+                    speechRecognition.start();
+                    isRecording = true;
+                    els.micBtn.classList.remove('bg-slate-800', 'text-blue-400', 'border-slate-700', 'hover:border-slate-600');
+                    els.micBtn.classList.add('bg-red-500', 'text-white', 'border-red-400', 'animate-pulse');
+                    els.micBtn.innerHTML = '<i class="fa-solid fa-stop text-lg flex-shrink-0"></i><span class="font-medium text-sm">音声入力中... (タップで停止)</span>';
+                    showToast('音声入力中...', 'info');
+                } catch (e) {
+                    showToast('マイクにアクセスできませんでした', 'error');
+                }
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            els.micBtn.classList.remove('bg-red-500', 'text-white', 'border-red-400', 'animate-pulse');
+            els.micBtn.classList.add('bg-slate-800', 'text-blue-400', 'border-slate-700', 'hover:border-slate-600');
+            els.micBtn.innerHTML = '<i class="fa-solid fa-microphone text-lg flex-shrink-0"></i><span class="font-medium text-sm">音声でテキストを入力</span>';
+        }
+
+        // --- Audio format helpers ---
+        function pcmToWav(pcmData, sampleRate) {
+            const numChannels = 1;
+            const bitsPerSample = 16;
+            const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+            const blockAlign = numChannels * (bitsPerSample / 8);
+            const dataSize = pcmData.length * 2;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            const writeString = (view, offset, string) => { for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i)); };
+
+            writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + dataSize, true); writeString(view, 8, 'WAVE'); writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true); view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitsPerSample, true); writeString(view, 36, 'data'); view.setUint32(40, dataSize, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcmData.length; i++, offset += 2) view.setInt16(offset, pcmData[i], true);
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binary_string.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
