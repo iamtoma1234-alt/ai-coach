@@ -234,8 +234,8 @@
                     <i class="fa-solid fa-mug-hot"></i> Casual / Daily
                 </div>
                 <!-- ★ 学習リストへ追加ボタン -->
-                <button id="saveToListBtn" class="absolute top-3 right-4 text-slate-400 hover:text-yellow-400 transition-colors hidden" title="学習リストに保存">
-                    <i id="saveToListIcon" class="fa-regular fa-star text-xl"></i>
+                <button id="saveToListBtnCasual" class="absolute top-3 right-4 text-slate-400 hover:text-yellow-400 transition-colors hidden" title="学習リストに保存">
+                    <i id="saveToListIconCasual" class="fa-regular fa-star text-xl"></i>
                 </button>
                 
                 <div class="mt-4 flex justify-between items-start gap-4">
@@ -251,7 +251,12 @@
                 <div class="absolute -top-3 left-4 bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-0.5 rounded-full text-xs font-bold flex items-center gap-1.5">
                     <i class="fa-solid fa-briefcase"></i> Polite / Business
                 </div>
-                <div class="mt-2 flex justify-between items-start gap-4">
+                <!-- ★ 学習リストへ追加ボタン -->
+                <button id="saveToListBtnBusiness" class="absolute top-3 right-4 text-slate-400 hover:text-yellow-400 transition-colors hidden" title="学習リストに保存">
+                    <i id="saveToListIconBusiness" class="fa-regular fa-star text-xl"></i>
+                </button>
+
+                <div class="mt-4 flex justify-between items-start gap-4">
                     <p id="businessText" class="text-lg sm:text-xl font-medium leading-relaxed font-sans text-white flex-1"></p>
                     <button class="play-btn flex-shrink-0 w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-colors" data-target="businessText">
                         <i class="fa-solid fa-play"></i>
@@ -275,15 +280,12 @@
                     <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         <i class="fa-solid fa-clock-rotate-left"></i> 最近の履歴
                     </h2>
-                    <button id="playAllHistoryBtn" class="hidden text-xs bg-slate-700 text-slate-300 hover:bg-blue-500 hover:text-white px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium shadow-sm">
-                        <i class="fa-solid fa-play"></i> 全件再生
-                    </button>
                 </div>
                 <button id="clearHistoryBtn" class="text-xs text-red-400 hover:text-red-300 transition-colors hidden">
                     <i class="fa-solid fa-trash-can mr-1"></i>クリア
                 </button>
             </div>
-            <div id="historyList" class="space-y-3"></div>
+            <div id="historyList" class="space-y-4"></div>
         </section>
     </main>
 
@@ -412,10 +414,10 @@
             browserVoiceUri: localStorage.getItem('nativeSense_bVoice') || '',
             aiVoiceName: localStorage.getItem('nativeSense_aiVoice') || 'Zephyr',
             speed: parseFloat(localStorage.getItem('nativeSense_speed')) || 1.0,
-            listRepeatCount: parseInt(localStorage.getItem('nativeSense_listRepeatCount')) || 1, // 各フレーズの再生回数
+            listRepeatCount: parseInt(localStorage.getItem('nativeSense_listRepeatCount')) || 1, 
             
             isLooping: false,
-            currentResult: null // 最後に変換した結果（リスト登録用）
+            currentResult: null 
         };
 
         const AI_VOICES = [
@@ -434,16 +436,14 @@
         let playbackState = {
             audioObj: null,
             isPlayingQueue: false,
-            queueType: null, // 'history' | 'list'
             queue: [],
             currentText: ''
         };
-        const audioCache = new Map(); // メモリキャッシュ
+        const audioCache = new Map(); 
         const wordDictionaryCache = new Map();
         let tooltipTimeout = null;
         let loopTimeout = null;
 
-        // グローバルオーディオプレイヤー (iOSの自動再生制限対策)
         const globalAudioPlayer = new Audio();
 
         // ==========================================
@@ -480,12 +480,14 @@
             casualText: document.getElementById('casualText'),
             businessText: document.getElementById('businessText'),
             adviceText: document.getElementById('adviceText'),
-            saveToListBtn: document.getElementById('saveToListBtn'),
-            saveToListIcon: document.getElementById('saveToListIcon'),
+            
+            saveToListBtnCasual: document.getElementById('saveToListBtnCasual'),
+            saveToListIconCasual: document.getElementById('saveToListIconCasual'),
+            saveToListBtnBusiness: document.getElementById('saveToListBtnBusiness'),
+            saveToListIconBusiness: document.getElementById('saveToListIconBusiness'),
             
             historyList: document.getElementById('historyList'),
             clearHistoryBtn: document.getElementById('clearHistoryBtn'),
-            playAllHistoryBtn: document.getElementById('playAllHistoryBtn'),
             
             studyListContainer: document.getElementById('studyListContainer'),
             playAllListBtn: document.getElementById('playAllListBtn'),
@@ -506,6 +508,7 @@
         // 4. Initialization & UI Setup
         // ==========================================
         function init() {
+            migrateData(); // 互換性のため古いデータを更新
             updateApiKeyUI();
             renderHistory();
             renderStudyList();
@@ -517,6 +520,22 @@
             els.listRepeatCount.value = state.listRepeatCount;
             
             setupEventListeners();
+        }
+
+        // 古いバージョンのデータを現在の仕様(text, typeプロパティ)に更新
+        function migrateData() {
+            let updated = false;
+            state.studyList = state.studyList.map(item => {
+                if (item.casual && !item.text) {
+                    item.text = item.casual;
+                    item.type = 'casual';
+                    updated = true;
+                }
+                return item;
+            });
+            if (updated) {
+                localStorage.setItem('nativeSense_studyList', JSON.stringify(state.studyList));
+            }
         }
 
         function showToast(message, type = 'info') {
@@ -548,7 +567,6 @@
             }
         }
 
-        // View Switcher (Main <-> List)
         function switchView(viewName) {
             stopQueue(); 
             if (viewName === 'list') {
@@ -567,10 +585,8 @@
             }
         }
 
-        // ユーザーインタラクション時にAudioをアンロックする (iOS Safari対策)
         function unlockAudio() {
             if (!globalAudioPlayer.src) {
-                // 無音のWAVデータをセットして一瞬だけ再生・停止する
                 globalAudioPlayer.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
                 globalAudioPlayer.play().then(() => {
                     globalAudioPlayer.pause();
@@ -581,18 +597,15 @@
         }
 
         function setupEventListeners() {
-            // Audio Unlock (Mobile)
             document.addEventListener('touchstart', unlockAudio);
             document.addEventListener('click', unlockAudio);
 
-            // View Navigation
             els.logoBtn.addEventListener('click', () => switchView('main'));
             els.navStudyListBtn.addEventListener('click', () => {
                 if (els.listView.classList.contains('hidden')) switchView('list');
                 else switchView('main');
             });
 
-            // Input
             els.inputText.addEventListener('input', () => els.charCount.textContent = `${els.inputText.value.length} / 200`);
             els.clearBtn.addEventListener('click', () => {
                 els.inputText.value = '';
@@ -612,7 +625,6 @@
                 }
             });
 
-            // API Modal
             els.apiKeyBtn.addEventListener('click', () => {
                 els.apiKeyInput.value = state.apiKey;
                 els.apiKeyModal.classList.remove('hidden');
@@ -634,7 +646,6 @@
                 showToast('APIキーを削除しました', 'info');
             });
 
-            // Settings
             els.engineBrowser.addEventListener('click', () => switchTTSEngine('browser'));
             els.engineAI.addEventListener('click', () => switchTTSEngine('ai'));
             els.accentUS.addEventListener('click', () => switchAccent('US'));
@@ -677,37 +688,28 @@
                 }
             });
 
-            // 繰り返し回数設定の変更
             els.listRepeatCount.addEventListener('change', (e) => {
                 state.listRepeatCount = parseInt(e.target.value);
                 localStorage.setItem('nativeSense_listRepeatCount', state.listRepeatCount);
             });
 
-            // Action
             els.analyzeBtn.addEventListener('click', handleAnalyze);
 
-            // Save to List Btn
-            els.saveToListBtn.addEventListener('click', handleSaveToList);
+            els.saveToListBtnCasual.addEventListener('click', () => handleSaveToList('casual'));
+            els.saveToListBtnBusiness.addEventListener('click', () => handleSaveToList('business'));
 
-            // Queue Play
-            els.playAllHistoryBtn.addEventListener('click', () => {
-                if (playbackState.isPlayingQueue && playbackState.queueType === 'history') stopQueue();
-                else startQueue('history');
-            });
             els.playAllListBtn.addEventListener('click', () => {
-                if (playbackState.isPlayingQueue && playbackState.queueType === 'list') stopQueue();
-                else startQueue('list');
+                if (playbackState.isPlayingQueue) stopQueue();
+                else startQueue();
             });
 
             els.clearHistoryBtn.addEventListener('click', () => {
                 state.history = [];
                 localStorage.removeItem('nativeSense_history');
                 renderHistory();
-                if (playbackState.queueType === 'history') stopQueue();
                 showToast('履歴をクリアしました');
             });
 
-            // Result Play buttons
             document.querySelectorAll('.play-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const targetId = e.currentTarget.getAttribute('data-target');
@@ -716,7 +718,6 @@
                 });
             });
 
-            // Tooltip outside click
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('#wordTooltip') && e.target.tagName !== 'SPAN') els.wordTooltip.classList.add('hidden');
             });
@@ -839,7 +840,6 @@
             if (loopTimeout) clearTimeout(loopTimeout);
             if (playbackState.audioObj) {
                 playbackState.audioObj.pause();
-                // 連続再生によるバグを防ぐため、イベントリスナーをリセット
                 playbackState.audioObj.onended = null;
             }
             window.speechSynthesis.cancel();
@@ -847,15 +847,12 @@
         }
 
         function handlePlaybackEnd(text) {
-            // 現在のテキストと一致している場合のみ次に進む
             if (playbackState.currentText !== text) return;
 
             if (playbackState.isPlayingQueue) {
-                // キュー再生中の場合、確実に次へ
                 loopTimeout = setTimeout(() => playNextInQueue(), 1000);
             } 
             else if (state.isLooping) {
-                // 単一ループ再生中の場合
                 loopTimeout = setTimeout(() => {
                     if (state.isLooping) {
                         if (playbackState.audioObj) {
@@ -869,11 +866,8 @@
             }
         }
 
-        // ここが一番重要な修正ポイント（グローバルなAudioオブジェクトを使い回す）
         function playAudioURL(url, text) {
-            // イベントリスナーの重複を防ぐ
             globalAudioPlayer.onended = null;
-            
             globalAudioPlayer.src = url;
             globalAudioPlayer.playbackRate = state.speed;
             
@@ -882,7 +876,6 @@
             
             globalAudioPlayer.onended = () => handlePlaybackEnd(text);
             
-            // Promiseをキャッチしてエラーを回避
             const playPromise = globalAudioPlayer.play();
             if (playPromise !== undefined) {
                 playPromise.catch(error => {
@@ -931,13 +924,11 @@
             const acc = forceAccent || state.accent;
             const cacheKey = `${vName}_${acc}_${text}`;
 
-            // 1. Check Memory Cache
             if (audioCache.has(cacheKey)) {
                 playAudioURL(audioCache.get(cacheKey), text);
                 return;
             }
 
-            // 2. Check IndexedDB
             try {
                 const blob = await getAudioFromDB(cacheKey);
                 if (blob) {
@@ -948,7 +939,6 @@
                 }
             } catch(e) { console.error(e); }
 
-            // 3. Generate via API
             if (!playbackState.isPlayingQueue) showToast('AI音声を生成中...', 'info');
             
             try {
@@ -1005,34 +995,26 @@
             stopAudio();
             playbackState.isPlayingQueue = false;
             playbackState.queue = [];
-            playbackState.queueType = null;
             updateQueueUI();
             highlightItem(null);
         }
 
-        function startQueue(type) { // 'history' | 'list'
+        function startQueue() {
             stopAudio();
-            playbackState.queueType = type;
             playbackState.isPlayingQueue = true;
-            
             playbackState.queue = [];
             
-            if (type === 'history') {
-                playbackState.queue = [...state.history];
-            } else {
-                // 学習リストの場合は指定回数だけ繰り返してキューに積む
-                const repeatCount = state.listRepeatCount;
-                state.studyList.forEach(item => {
-                    for(let i = 0; i < repeatCount; i++) {
-                        playbackState.queue.push(item);
-                    }
-                });
-            }
+            const repeatCount = state.listRepeatCount;
+            state.studyList.forEach(item => {
+                for(let i = 0; i < repeatCount; i++) {
+                    playbackState.queue.push(item);
+                }
+            });
             
             if (playbackState.queue.length === 0) return stopQueue();
             
             updateQueueUI();
-            showToast(type === 'history' ? '履歴の全件再生を開始します' : '学習リストの全件再生を開始します', 'info');
+            showToast('学習リストの全件再生を開始します', 'info');
             playNextInQueue();
         }
 
@@ -1044,43 +1026,27 @@
             }
             
             const nextItem = playbackState.queue.shift();
-            highlightItem(nextItem.id, playbackState.queueType);
+            highlightItem(nextItem.id);
             
-            // 重要：少し間隔をあけてから確実にTTSを呼び出す
             setTimeout(async () => {
-                if (!playbackState.isPlayingQueue) return; // 待機中に停止された場合を考慮
-                
-                if (playbackState.queueType === 'list') {
-                    await playTTS(nextItem.casual, 'ai', nextItem.voiceName, nextItem.accent);
-                } else {
-                    await playTTS(nextItem.casual);
-                }
+                if (!playbackState.isPlayingQueue) return; 
+                await playTTS(nextItem.text, 'ai', nextItem.voiceName, nextItem.accent);
             }, 300);
         }
 
         function updateQueueUI() {
-            const hBtn = els.playAllHistoryBtn;
             const lBtn = els.playAllListBtn;
-            
-            hBtn.innerHTML = `<i class="fa-solid fa-play"></i> 全件再生`;
-            hBtn.className = "text-xs bg-slate-700 text-slate-300 hover:bg-blue-500 hover:text-white px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium shadow-sm";
-            
             lBtn.innerHTML = `<i class="fa-solid fa-play"></i> リスト全件再生`;
             lBtn.className = "flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 font-medium";
 
             if (playbackState.isPlayingQueue) {
-                if (playbackState.queueType === 'history') {
-                    hBtn.innerHTML = `<i class="fa-solid fa-stop"></i> 停止する`;
-                    hBtn.className = "text-xs bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium shadow-sm animate-pulse-ring";
-                } else {
-                    lBtn.innerHTML = `<i class="fa-solid fa-stop"></i> 停止する`;
-                    lBtn.className = "flex-1 sm:flex-none bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 font-medium animate-pulse-ring";
-                }
+                lBtn.innerHTML = `<i class="fa-solid fa-stop"></i> 停止する`;
+                lBtn.className = "flex-1 sm:flex-none bg-red-600 hover:bg-red-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 font-medium animate-pulse-ring";
             }
         }
 
-        function highlightItem(id, type) {
-            const selector = type === 'history' ? '#historyList > div' : '#studyListContainer > div';
+        function highlightItem(id) {
+            const selector = '#studyListContainer > div';
             document.querySelectorAll(selector).forEach(el => {
                 if (el.getAttribute('data-id') == id) {
                     el.classList.add('border-blue-500/50', 'bg-slate-800');
@@ -1099,24 +1065,36 @@
         // ==========================================
         function updateSaveBtnState() {
             if (!state.currentResult) {
-                els.saveToListBtn.classList.add('hidden');
+                els.saveToListBtnCasual.classList.add('hidden');
+                els.saveToListBtnBusiness.classList.add('hidden');
                 return;
             }
-            els.saveToListBtn.classList.remove('hidden');
+            els.saveToListBtnCasual.classList.remove('hidden');
+            els.saveToListBtnBusiness.classList.remove('hidden');
             
-            const exists = state.studyList.some(item => item.casual === state.currentResult.casual);
-            if (exists) {
-                els.saveToListIcon.className = "fa-solid fa-star text-yellow-400";
-                els.saveToListBtn.title = "学習リストから削除";
+            const casualExists = state.studyList.some(item => item.text === state.currentResult.casual);
+            if (casualExists) {
+                els.saveToListIconCasual.className = "fa-solid fa-star text-yellow-400";
+                els.saveToListBtnCasual.title = "学習リストから削除";
             } else {
-                els.saveToListIcon.className = "fa-regular fa-star text-slate-400";
-                els.saveToListBtn.title = "学習リストに保存";
+                els.saveToListIconCasual.className = "fa-regular fa-star text-slate-400";
+                els.saveToListBtnCasual.title = "学習リストに保存";
+            }
+
+            const businessExists = state.studyList.some(item => item.text === state.currentResult.business);
+            if (businessExists) {
+                els.saveToListIconBusiness.className = "fa-solid fa-star text-yellow-400";
+                els.saveToListBtnBusiness.title = "学習リストから削除";
+            } else {
+                els.saveToListIconBusiness.className = "fa-regular fa-star text-slate-400";
+                els.saveToListBtnBusiness.title = "学習リストに保存";
             }
         }
 
-        function handleSaveToList() {
+        function handleSaveToList(type) {
             if (!state.currentResult) return;
-            const existsIndex = state.studyList.findIndex(item => item.casual === state.currentResult.casual);
+            const targetText = type === 'casual' ? state.currentResult.casual : state.currentResult.business;
+            const existsIndex = state.studyList.findIndex(item => item.text === targetText);
             
             if (existsIndex >= 0) {
                 state.studyList.splice(existsIndex, 1);
@@ -1126,7 +1104,8 @@
                     id: Date.now(),
                     original: state.currentResult.original,
                     context: state.currentResult.context,
-                    casual: state.currentResult.casual,
+                    text: targetText,
+                    type: type,
                     voiceName: state.currentResult.voiceName,
                     accent: state.currentResult.accent,
                     date: new Date().toLocaleDateString('ja-JP')
@@ -1158,6 +1137,9 @@
                 el.setAttribute('data-id', item.id);
                 
                 let contextHtml = item.context ? `<p class="text-[10px] text-amber-400/80 line-clamp-1 mb-1"><i class="fa-solid fa-quote-left mr-1"></i>${item.context}</p>` : '';
+                const typeIcon = item.type === 'business' ? 'fa-briefcase' : 'fa-mug-hot';
+                const typeColor = item.type === 'business' ? 'text-blue-400' : 'text-emerald-400';
+                const typeLabel = item.type === 'business' ? 'Business' : 'Casual';
 
                 el.innerHTML = `
                     <button class="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors list-delete-btn" data-id="${item.id}" title="リストから削除">
@@ -1165,11 +1147,14 @@
                     </button>
                     <div class="pr-8">
                         ${contextHtml}
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="text-[10px] ${typeColor} font-bold"><i class="fa-solid ${typeIcon}"></i> ${typeLabel}</span>
+                        </div>
                         <p class="text-xs text-slate-400 font-medium">${item.original}</p>
                     </div>
                     <div class="flex justify-between items-center bg-slate-900/80 p-3 rounded-lg border border-slate-700/50">
                         <div class="list-english-text text-base font-semibold text-slate-100 pr-2 leading-relaxed flex-1"></div>
-                        <button class="list-play-btn flex-shrink-0 w-10 h-10 rounded-full bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-colors shadow-sm" data-text="${item.casual}" data-voice="${item.voiceName}" data-accent="${item.accent}">
+                        <button class="list-play-btn flex-shrink-0 w-10 h-10 rounded-full bg-blue-600/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-colors shadow-sm" data-text="${item.text.replace(/"/g, '&quot;')}" data-voice="${item.voiceName}" data-accent="${item.accent}">
                             <i class="fa-solid fa-play"></i>
                         </button>
                     </div>
@@ -1180,7 +1165,7 @@
                 `;
                 
                 const textContainer = el.querySelector('.list-english-text');
-                createClickableText(item.casual, textContainer);
+                createClickableText(item.text, textContainer);
                 els.studyListContainer.appendChild(el);
             });
 
@@ -1235,6 +1220,7 @@
                     original: text,
                     context: contextText,
                     casual: resultObj.casual,
+                    business: resultObj.business,
                     voiceName: state.aiVoiceName,
                     accent: state.accent
                 };
@@ -1320,23 +1306,21 @@ Provide a "casual" natural native expression, a "business" polite expression, an
             if (state.history.length === 0) {
                 els.historyList.innerHTML = `<p class="text-slate-500 text-sm text-center py-4 bg-slate-800/30 rounded-xl border border-dashed border-slate-700">履歴はまだありません</p>`;
                 els.clearHistoryBtn.classList.add('hidden');
-                els.playAllHistoryBtn.classList.add('hidden');
                 return;
             }
 
             els.clearHistoryBtn.classList.remove('hidden');
-            els.playAllHistoryBtn.classList.remove('hidden');
             els.historyList.innerHTML = '';
             
             state.history.forEach(item => {
                 const el = document.createElement('div');
-                el.className = 'bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl flex flex-col gap-2 relative transition-colors duration-300';
+                el.className = 'bg-slate-800/50 border border-slate-700/50 p-4 rounded-xl flex flex-col relative transition-colors duration-300 mb-4';
                 el.setAttribute('data-id', item.id);
                 
                 let contextHtml = item.context ? `<p class="text-[10px] text-amber-400/80 line-clamp-1 mb-1"><i class="fa-solid fa-quote-left mr-1"></i>${item.context}</p>` : '';
 
                 el.innerHTML = `
-                    <div class="flex justify-between items-start mb-1">
+                    <div class="flex justify-between items-start mb-2">
                         <div class="flex-1 pr-4">
                             ${contextHtml}
                             <p class="text-xs text-slate-400 font-medium line-clamp-1" title="${item.original}">${item.original}</p>
@@ -1344,16 +1328,28 @@ Provide a "casual" natural native expression, a "business" polite expression, an
                         <span class="text-[10px] text-slate-500">${item.date}</span>
                     </div>
                     
-                    <div class="flex justify-between items-center bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+                    <div class="mt-1 text-[10px] text-emerald-400 font-bold mb-1"><i class="fa-solid fa-mug-hot"></i> Casual</div>
+                    <div class="flex justify-between items-center bg-slate-900/50 p-2.5 rounded-lg border border-slate-800 mb-3">
                         <div class="history-casual-text text-sm font-medium text-slate-200 pr-2 leading-relaxed flex-1"></div>
-                        <button class="history-play-btn flex-shrink-0 w-8 h-8 rounded-full bg-slate-700 text-slate-300 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors" data-text="${item.casual}">
+                        <button class="history-play-btn flex-shrink-0 w-8 h-8 rounded-full bg-slate-700 text-slate-300 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors" data-text="${item.casual.replace(/"/g, '&quot;')}">
+                            <i class="fa-solid fa-play text-xs"></i>
+                        </button>
+                    </div>
+
+                    <div class="text-[10px] text-blue-400 font-bold mb-1"><i class="fa-solid fa-briefcase"></i> Business</div>
+                    <div class="flex justify-between items-center bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+                        <div class="history-business-text text-sm font-medium text-slate-200 pr-2 leading-relaxed flex-1"></div>
+                        <button class="history-play-btn flex-shrink-0 w-8 h-8 rounded-full bg-slate-700 text-slate-300 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors" data-text="${item.business.replace(/"/g, '&quot;')}">
                             <i class="fa-solid fa-play text-xs"></i>
                         </button>
                     </div>
                 `;
                 
-                const textContainer = el.querySelector('.history-casual-text');
-                createClickableText(item.casual, textContainer);
+                const casualTextContainer = el.querySelector('.history-casual-text');
+                createClickableText(item.casual, casualTextContainer);
+                const businessTextContainer = el.querySelector('.history-business-text');
+                createClickableText(item.business, businessTextContainer);
+
                 els.historyList.appendChild(el);
             });
 
