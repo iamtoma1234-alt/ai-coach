@@ -298,10 +298,20 @@
             </h2>
             <p class="text-sm text-blue-200 relative z-10">登録したフレーズは端末のデータベースに保存され、通信なしでネイティブ音声を再生できます。</p>
             
-            <div class="mt-4 flex gap-3 relative z-10">
+            <div class="mt-4 flex flex-wrap gap-3 relative z-10 items-center">
                 <button id="playAllListBtn" class="hidden flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 font-medium">
                     <i class="fa-solid fa-play"></i> リスト全件再生
                 </button>
+                <!-- 繰り返し回数選択 -->
+                <div id="listRepeatWrapper" class="hidden flex items-center gap-2 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700/50">
+                    <span class="text-xs text-slate-300">各フレーズ:</span>
+                    <select id="listRepeatCount" class="bg-slate-900 border border-slate-600 text-slate-200 text-xs rounded px-2 py-1 focus:outline-none focus:border-blue-500 cursor-pointer">
+                        <option value="1">1回ずつ</option>
+                        <option value="2">2回ずつ</option>
+                        <option value="3">3回ずつ</option>
+                        <option value="4">4回ずつ</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -402,6 +412,7 @@
             browserVoiceUri: localStorage.getItem('nativeSense_bVoice') || '',
             aiVoiceName: localStorage.getItem('nativeSense_aiVoice') || 'Zephyr',
             speed: parseFloat(localStorage.getItem('nativeSense_speed')) || 1.0,
+            listRepeatCount: parseInt(localStorage.getItem('nativeSense_listRepeatCount')) || 1, // 各フレーズの再生回数
             
             isLooping: false,
             currentResult: null // 最後に変換した結果（リスト登録用）
@@ -478,6 +489,8 @@
             
             studyListContainer: document.getElementById('studyListContainer'),
             playAllListBtn: document.getElementById('playAllListBtn'),
+            listRepeatWrapper: document.getElementById('listRepeatWrapper'),
+            listRepeatCount: document.getElementById('listRepeatCount'),
             
             apiKeyBtn: document.getElementById('apiKeyBtn'),
             apiKeyStatusText: document.getElementById('apiKeyStatusText'),
@@ -501,6 +514,7 @@
             
             els.speedSlider.value = state.speed;
             els.speedValue.textContent = state.speed.toFixed(1) + 'x';
+            els.listRepeatCount.value = state.listRepeatCount;
             
             setupEventListeners();
         }
@@ -661,6 +675,12 @@
                         loopTimeout = null;
                     }
                 }
+            });
+
+            // 繰り返し回数設定の変更
+            els.listRepeatCount.addEventListener('change', (e) => {
+                state.listRepeatCount = parseInt(e.target.value);
+                localStorage.setItem('nativeSense_listRepeatCount', state.listRepeatCount);
             });
 
             // Action
@@ -995,10 +1015,18 @@
             playbackState.queueType = type;
             playbackState.isPlayingQueue = true;
             
+            playbackState.queue = [];
+            
             if (type === 'history') {
                 playbackState.queue = [...state.history];
             } else {
-                playbackState.queue = [...state.studyList];
+                // 学習リストの場合は指定回数だけ繰り返してキューに積む
+                const repeatCount = state.listRepeatCount;
+                state.studyList.forEach(item => {
+                    for(let i = 0; i < repeatCount; i++) {
+                        playbackState.queue.push(item);
+                    }
+                });
             }
             
             if (playbackState.queue.length === 0) return stopQueue();
@@ -1116,10 +1144,12 @@
             if (state.studyList.length === 0) {
                 els.studyListContainer.innerHTML = `<div class="text-center py-10 bg-slate-800/30 rounded-2xl border border-dashed border-slate-700/50"><p class="text-slate-500 text-sm">登録されたフレーズはありません</p><p class="text-xs text-slate-600 mt-2">翻訳結果の ★ ボタンを押して追加できます</p></div>`;
                 els.playAllListBtn.classList.add('hidden');
+                els.listRepeatWrapper.classList.add('hidden');
                 return;
             }
 
             els.playAllListBtn.classList.remove('hidden');
+            els.listRepeatWrapper.classList.remove('hidden');
             els.studyListContainer.innerHTML = '';
             
             state.studyList.forEach(item => {
