@@ -432,6 +432,9 @@
         let tooltipTimeout = null;
         let loopTimeout = null;
 
+        // グローバルオーディオプレイヤー (iOSの自動再生制限対策)
+        const globalAudioPlayer = new Audio();
+
         // ==========================================
         // 3. DOM Elements
         // ==========================================
@@ -521,7 +524,6 @@
             }, 3000);
         }
 
-        // --- 追加：ボタンのローディング状態を切り替える関数 ---
         function setButtonLoading(btn, isLoading, originalText, iconClass) {
             if (isLoading) {
                 btn.disabled = true;
@@ -534,7 +536,7 @@
 
         // View Switcher (Main <-> List)
         function switchView(viewName) {
-            stopQueue(); // 画面切り替え時は音声を止める
+            stopQueue(); 
             if (viewName === 'list') {
                 els.mainView.classList.add('hidden');
                 els.listView.classList.remove('hidden');
@@ -551,7 +553,24 @@
             }
         }
 
+        // ユーザーインタラクション時にAudioをアンロックする (iOS Safari対策)
+        function unlockAudio() {
+            if (!globalAudioPlayer.src) {
+                // 無音のWAVデータをセットして一瞬だけ再生・停止する
+                globalAudioPlayer.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+                globalAudioPlayer.play().then(() => {
+                    globalAudioPlayer.pause();
+                }).catch(() => {});
+            }
+            document.removeEventListener('touchstart', unlockAudio);
+            document.removeEventListener('click', unlockAudio);
+        }
+
         function setupEventListeners() {
+            // Audio Unlock (Mobile)
+            document.addEventListener('touchstart', unlockAudio);
+            document.addEventListener('click', unlockAudio);
+
             // View Navigation
             els.logoBtn.addEventListener('click', () => switchView('main'));
             els.navStudyListBtn.addEventListener('click', () => {
@@ -698,7 +717,6 @@
         // ==========================================
         // 5. Audio Playback Control
         // ==========================================
-        
         function initTTS() {
             switchTTSEngine(state.ttsEngine);
             switchAccent(state.accent);
@@ -799,39 +817,62 @@
 
         function stopAudio() {
             if (loopTimeout) clearTimeout(loopTimeout);
-            if (playbackState.audioObj) playbackState.audioObj.pause();
+            if (playbackState.audioObj) {
+                playbackState.audioObj.pause();
+                // 連続再生によるバグを防ぐため、イベントリスナーをリセット
+                playbackState.audioObj.onended = null;
+            }
             window.speechSynthesis.cancel();
-            playbackState.audioObj = null;
             playbackState.currentText = '';
         }
 
         function handlePlaybackEnd(text) {
-            // Queue Play (優先)
-            if (playbackState.isPlayingQueue && playbackState.currentText === text) {
-                loopTimeout = setTimeout(() => playNextInQueue(), 1500);
+            // 現在のテキストと一致している場合のみ次に進む
+            if (playbackState.currentText !== text) return;
+
+            if (playbackState.isPlayingQueue) {
+                // キュー再生中の場合、確実に次へ
+                loopTimeout = setTimeout(() => playNextInQueue(), 1000);
             } 
-            // Loop Play
-            else if (state.isLooping && playbackState.currentText === text) {
+            else if (state.isLooping) {
+                // 単一ループ再生中の場合
                 loopTimeout = setTimeout(() => {
                     if (state.isLooping) {
                         if (playbackState.audioObj) {
                             playbackState.audioObj.currentTime = 0;
-                            playbackState.audioObj.play();
+                            playbackState.audioObj.play().catch(e => console.error("Loop play blocked", e));
                         } else {
                             playBrowserTTS(text);
                         }
                     }
-                }, 1500);
+                }, 1000);
             }
         }
 
+        // ここが一番重要な修正ポイント（グローバルなAudioオブジェクトを使い回す）
         function playAudioURL(url, text) {
-            playbackState.audioObj = new Audio(url);
-            playbackState.audioObj.playbackRate = state.speed;
+            // イベントリスナーの重複を防ぐ
+            globalAudioPlayer.onended = null;
+            
+            globalAudioPlayer.src = url;
+            globalAudioPlayer.playbackRate = state.speed;
+            
+            playbackState.audioObj = globalAudioPlayer;
             playbackState.currentText = text;
             
-            playbackState.audioObj.onended = () => handlePlaybackEnd(text);
-            playbackState.audioObj.play();
+            globalAudioPlayer.onended = () => handlePlaybackEnd(text);
+            
+            // Promiseをキャッチしてエラーを回避
+            const playPromise = globalAudioPlayer.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.error("Audio playback error:", error);
+                    if (playbackState.isPlayingQueue) {
+                        stopQueue();
+                        showToast('ブラウザの制限により連続再生が停止しました。画面を一度タップしてからお試しください。', 'error');
+                    }
+                });
+            }
         }
 
         async function playTTS(text, forceEngine = null, forceVoice = null, forceAccent = null) {
@@ -851,7 +892,6 @@
             if (!('speechSynthesis' in window)) return;
             const utterance = new SpeechSynthesisUtterance(text);
             
-            // 簡易的にエンジン設定だけ反映（厳密なVoice検索は省略し現在選択中のものを使う）
             const voice = browserVoices.find(v => v.voiceURI === state.browserVoiceUri) || browserVoices[0];
             if (voice) utterance.voice = voice;
             utterance.rate = state.speed; 
@@ -923,7 +963,6 @@
                     const pcm16 = new Int16Array(pcmBuffer);
                     const wavBlob = pcmToWav(pcm16, sampleRate);
                     
-                    // Fire and forget save to DB
                     saveAudioToDB(cacheKey, wavBlob);
 
                     const audioUrl = URL.createObjectURL(wavBlob);
@@ -979,19 +1018,22 @@
             const nextItem = playbackState.queue.shift();
             highlightItem(nextItem.id, playbackState.queueType);
             
-            // 学習リストの場合は、登録時のAI音声設定を優先して再生
-            if (playbackState.queueType === 'list') {
-                playTTS(nextItem.casual, 'ai', nextItem.voiceName, nextItem.accent);
-            } else {
-                playTTS(nextItem.casual);
-            }
+            // 重要：少し間隔をあけてから確実にTTSを呼び出す
+            setTimeout(async () => {
+                if (!playbackState.isPlayingQueue) return; // 待機中に停止された場合を考慮
+                
+                if (playbackState.queueType === 'list') {
+                    await playTTS(nextItem.casual, 'ai', nextItem.voiceName, nextItem.accent);
+                } else {
+                    await playTTS(nextItem.casual);
+                }
+            }, 300);
         }
 
         function updateQueueUI() {
             const hBtn = els.playAllHistoryBtn;
             const lBtn = els.playAllListBtn;
             
-            // Reset both
             hBtn.innerHTML = `<i class="fa-solid fa-play"></i> 全件再生`;
             hBtn.className = "text-xs bg-slate-700 text-slate-300 hover:bg-blue-500 hover:text-white px-3 py-1 rounded-full transition-colors flex items-center gap-1.5 font-medium shadow-sm";
             
@@ -1112,7 +1154,6 @@
                 els.studyListContainer.appendChild(el);
             });
 
-            // Play & Delete events
             document.querySelectorAll('.list-play-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const btnEl = e.currentTarget;
@@ -1160,7 +1201,6 @@
                     resultObj = await callGeminiTextAPI(text, contextText);
                 }
 
-                // Store current result for save feature
                 state.currentResult = {
                     original: text,
                     context: contextText,
